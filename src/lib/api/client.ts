@@ -5,6 +5,8 @@
  * they call this typed client, which speaks the /api/v1 envelope.
  */
 
+import { appConfig } from "@/lib/config";
+
 export interface ApiEnvelopeMeta {
   requestId: string;
   timestamp: string;
@@ -23,7 +25,7 @@ export class ApiClientError extends Error {
   }
 }
 
-const BASE = "/api/v1";
+const BASE = appConfig.apiBaseUrl;
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
@@ -52,11 +54,36 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return body.data as T;
 }
 
+/**
+ * Namespaced surface. Future phases add their calls to the matching namespace
+ * instead of scattering fetch() through components.
+ */
 export const api = {
-  health: () => apiFetch<{ status: string; service: string; apiVersion: string; uptimeMs: number }>("/health"),
+  system: {
+    health: () =>
+      apiFetch<{ status: string; service: string; apiVersion: string; uptimeMs: number }>("/health"),
+    architecture: () => apiFetch<ArchitectureSnapshot>("/system/architecture"),
+    events: () => apiFetch<{ catalogue: string[]; recent: unknown[] }>("/events"),
+  },
+  // Reserved namespaces — populated in later phases.
+  auth: {},
+  conversations: {},
+  ai: {
+    providers: () => apiFetch<ArchitectureSnapshot["aiProviders"]>("/ai/providers"),
+  },
+  documents: {},
+  workflows: {},
+  integrations: {
+    list: () => apiFetch<ArchitectureSnapshot["integrations"]>("/integrations"),
+  },
+
+  // Back-compat shortcuts used by the current console view.
+  health: () =>
+    apiFetch<{ status: string; service: string; apiVersion: string; uptimeMs: number }>("/health"),
   architecture: () => apiFetch<ArchitectureSnapshot>("/system/architecture"),
   events: () => apiFetch<{ catalogue: string[]; recent: unknown[] }>("/events"),
 };
+
 
 export interface ArchitectureSnapshot {
   product: string;

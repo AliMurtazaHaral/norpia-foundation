@@ -27,3 +27,10 @@
 - Database + storage provisioning via Lovable Cloud.
 - Background jobs / durable event transport once the in-process bus is outgrown.
 - Structured log shipping and uptime checks against `GET /api/v1/health`.
+
+## Local Docker environment
+
+- `Dockerfile` (targets: `dev`, `runner`), `docker-compose.yml` (app + Postgres 16).
+- SQL migrations: `infrastructure/db/migrations/` (auto-applied on first DB boot).
+- Env template: `.env.example` (placeholders only; `.env` is git-ignored).
+- Instructions: `docs/development-environment.md`.

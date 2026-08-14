@@ -25,7 +25,7 @@ function plannedProvider(
 }
 
 const providers = new Map<string, AiProvider>([
-  ["lovable-ai", plannedProvider("lovable-ai", "Lovable AI Gateway", ["chat", "embedding", "image"])],
+
   ["openai", plannedProvider("openai", "OpenAI", ["chat", "embedding", "image", "speech-to-text"])],
   ["anthropic", plannedProvider("anthropic", "Anthropic", ["chat"])],
 ]);

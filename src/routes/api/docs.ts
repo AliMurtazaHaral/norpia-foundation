@@ -7,7 +7,7 @@ const html = `<!doctype html>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>NORPIA / JARVIS — API Reference</title>
+    <title>NORPIA — API Reference</title>
   </head>
   <body>
     <script id="api-reference" data-url="/api/v1/openapi.json"></script>

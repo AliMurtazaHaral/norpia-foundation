@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "NORPIA / JARVIS system architecture console: layered foundation, versioned API, event bus and integration contracts.",
+          "NORPIA system architecture console: layered foundation, versioned API, event bus and integration contracts.",
       },
       { property: "og:title", content: "NORPIA — AI Operating System Foundation" },
       {

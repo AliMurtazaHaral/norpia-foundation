@@ -13,10 +13,9 @@ export interface DomainEventMap {
   "workflow.completed": { workflowId: string; runId: string; status: "success" | "failed" };
   "ai.task.created": { taskId: string; provider: string; kind: string };
   "integration.connected": { integrationId: string };
-  "system.健康"?: never;
 }
 
-export type DomainEventName = Exclude<keyof DomainEventMap, "system.健康">;
+export type DomainEventName = keyof DomainEventMap;
 
 export interface DomainEvent<N extends DomainEventName = DomainEventName> {
   id: string;
@@ -24,7 +23,7 @@ export interface DomainEvent<N extends DomainEventName = DomainEventName> {
   payload: DomainEventMap[N];
   occurredAt: string;
   /** Correlates an event with the request that produced it. */
-  requestId?: string;
+  requestId?: string | undefined;
 }
 
 export const EVENT_CATALOGUE: DomainEventName[] = [

@@ -8,3 +8,7 @@
 | [`../infrastructure/README.md`](../infrastructure/README.md) | Runtime, environments, configuration and secrets |
 
 Live API reference: `/api/docs` (rendered from `/api/v1/openapi.json`).
+
+## Local environment
+
+See [development-environment.md](./development-environment.md) for Docker, env vars and startup commands.

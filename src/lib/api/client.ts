@@ -5,6 +5,8 @@
  * they call this typed client, which speaks the /api/v1 envelope.
  */
 
+import { appConfig } from "@/lib/config";
+
 export interface ApiEnvelopeMeta {
   requestId: string;
   timestamp: string;

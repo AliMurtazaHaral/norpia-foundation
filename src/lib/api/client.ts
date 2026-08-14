@@ -23,7 +23,7 @@ export class ApiClientError extends Error {
   }
 }
 
-const BASE = "/api/v1";
+const BASE = appConfig.apiBaseUrl;
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {

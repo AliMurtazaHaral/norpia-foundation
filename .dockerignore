@@ -1,0 +1,10 @@
+node_modules
+.output
+.vite
+dist
+.git
+.env
+.env.*
+!.env.example
+*.log
+tsconfig.tsbuildinfo

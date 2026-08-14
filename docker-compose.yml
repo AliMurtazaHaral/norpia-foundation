@@ -1,0 +1,43 @@
+# NORPIA — local development environment.
+# Usage:  cp .env.example .env  &&  docker compose up
+# Secrets are never baked into images; everything comes from .env.
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-norpia}:${POSTGRES_PASSWORD:-norpia}@db:5432/${POSTGRES_DB:-norpia}
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-norpia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-norpia}
+      POSTGRES_DB: ${POSTGRES_DB:-norpia}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-norpia}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  node_modules:

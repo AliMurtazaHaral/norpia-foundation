@@ -1,4 +1,4 @@
-# NORPIA / JARVIS — System Architecture
+# NORPIA — System Architecture
 
 Status: **Week 2 — System Architecture & Project Foundation**
 Scope of this document: the long-lived structure of the AI Operating System. It describes what

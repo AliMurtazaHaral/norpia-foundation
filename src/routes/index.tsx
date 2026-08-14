@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "NORPIA / JARVIS system architecture console: layered foundation, versioned API, event bus and integration contracts.",
+          "NORPIA system architecture console: layered foundation, versioned API, event bus and integration contracts.",
       },
       { property: "og:title", content: "NORPIA — AI Operating System Foundation" },
       {
@@ -56,9 +56,9 @@ function Index() {
               Orchestrate. Decide. Execute.
             </p>
             <h1 className="mt-3 font-display text-5xl font-extrabold tracking-tight">
-              <span className="brand-gradient-text">NORPIA</span>{" "}
-              <span className="text-foreground/60 text-3xl font-light">/ JARVIS</span>
+              <span className="brand-gradient-text">NORPIA</span>
             </h1>
+
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
               System architecture console for the AI Operating System foundation. Week 2 delivers
               the layered structure, the versioned API surface, the internal event bus and the

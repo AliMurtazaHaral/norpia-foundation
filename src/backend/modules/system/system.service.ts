@@ -15,7 +15,7 @@ export function createSystemService(repository: SystemRepository = systemReposit
     async health(): Promise<Health> {
       return {
         status: "ok",
-        service: "norpia-jarvis-api",
+        service: "norpia-api",
         apiVersion: API_VERSION,
         uptimeMs: Date.now() - bootedAt,
       };
@@ -23,7 +23,7 @@ export function createSystemService(repository: SystemRepository = systemReposit
 
     async architecture() {
       return {
-        product: "NORPIA / JARVIS",
+        product: "NORPIA",
         phase: "Week 2 — System Architecture & Project Foundation",
         apiVersion: API_VERSION,
         layers: await repository.listLayers(),

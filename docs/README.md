@@ -1,4 +1,4 @@
-# NORPIA / JARVIS — Documentation
+# NORPIA — Documentation
 
 | Document | Purpose |
 | --- | --- |

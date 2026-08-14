@@ -30,7 +30,7 @@ const errorResponse = {
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
-    title: "NORPIA / JARVIS API",
+    title: "NORPIA API",
     version: "1.0.0",
     description:
       "API-first foundation for the NORPIA AI Operating System. All endpoints return a consistent envelope.",

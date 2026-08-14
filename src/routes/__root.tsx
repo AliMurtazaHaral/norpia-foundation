@@ -77,10 +77,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NORPIA / JARVIS" },
+      { title: "NORPIA" },
       { name: "description", content: "AI Operating System for the next generation of businesses." },
       { name: "author", content: "NORPIA AG" },
-      { property: "og:title", content: "NORPIA / JARVIS" },
+      { property: "og:title", content: "NORPIA" },
       {
         property: "og:description",
         content: "AI Operating System for the next generation of businesses.",

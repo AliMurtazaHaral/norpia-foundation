@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiDocsRouteImport } from './routes/api/docs'
+import { Route as ApiV1EventsRouteImport } from './routes/api/v1/events'
+import { Route as ApiV1HealthRouteImport } from './routes/api/v1/health'
+import { Route as ApiV1IntegrationsRouteImport } from './routes/api/v1/integrations'
+import { Route as ApiV1OpenapiDotjsonRouteImport } from './routes/api/v1/openapi[.]json'
+import { Route as ApiV1AiProvidersRouteImport } from './routes/api/v1/ai/providers'
+import { Route as ApiV1SystemArchitectureRouteImport } from './routes/api/v1/system/architecture'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDocsRoute = ApiDocsRouteImport.update({
+  id: '/api/docs',
+  path: '/api/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1EventsRoute = ApiV1EventsRouteImport.update({
+  id: '/api/v1/events',
+  path: '/api/v1/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1HealthRoute = ApiV1HealthRouteImport.update({
+  id: '/api/v1/health',
+  path: '/api/v1/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1IntegrationsRoute = ApiV1IntegrationsRouteImport.update({
+  id: '/api/v1/integrations',
+  path: '/api/v1/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1OpenapiDotjsonRoute = ApiV1OpenapiDotjsonRouteImport.update({
+  id: '/api/v1/openapi.json',
+  path: '/api/v1/openapi.json',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1AiProvidersRoute = ApiV1AiProvidersRouteImport.update({
+  id: '/api/v1/ai/providers',
+  path: '/api/v1/ai/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1SystemArchitectureRoute = ApiV1SystemArchitectureRouteImport.update({
+  id: '/api/v1/system/architecture',
+  path: '/api/v1/system/architecture',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/docs': typeof ApiDocsRoute
+  '/api/v1/events': typeof ApiV1EventsRoute
+  '/api/v1/health': typeof ApiV1HealthRoute
+  '/api/v1/integrations': typeof ApiV1IntegrationsRoute
+  '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/docs': typeof ApiDocsRoute
+  '/api/v1/events': typeof ApiV1EventsRoute
+  '/api/v1/health': typeof ApiV1HealthRoute
+  '/api/v1/integrations': typeof ApiV1IntegrationsRoute
+  '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/docs': typeof ApiDocsRoute
+  '/api/v1/events': typeof ApiV1EventsRoute
+  '/api/v1/health': typeof ApiV1HealthRoute
+  '/api/v1/integrations': typeof ApiV1IntegrationsRoute
+  '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/docs'
+    | '/api/v1/events'
+    | '/api/v1/health'
+    | '/api/v1/integrations'
+    | '/api/v1/openapi.json'
+    | '/api/v1/ai/providers'
+    | '/api/v1/system/architecture'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/docs'
+    | '/api/v1/events'
+    | '/api/v1/health'
+    | '/api/v1/integrations'
+    | '/api/v1/openapi.json'
+    | '/api/v1/ai/providers'
+    | '/api/v1/system/architecture'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/docs'
+    | '/api/v1/events'
+    | '/api/v1/health'
+    | '/api/v1/integrations'
+    | '/api/v1/openapi.json'
+    | '/api/v1/ai/providers'
+    | '/api/v1/system/architecture'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiDocsRoute: typeof ApiDocsRoute
+  ApiV1EventsRoute: typeof ApiV1EventsRoute
+  ApiV1HealthRoute: typeof ApiV1HealthRoute
+  ApiV1IntegrationsRoute: typeof ApiV1IntegrationsRoute
+  ApiV1OpenapiDotjsonRoute: typeof ApiV1OpenapiDotjsonRoute
+  ApiV1AiProvidersRoute: typeof ApiV1AiProvidersRoute
+  ApiV1SystemArchitectureRoute: typeof ApiV1SystemArchitectureRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/docs': {
+      id: '/api/docs'
+      path: '/api/docs'
+      fullPath: '/api/docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/events': {
+      id: '/api/v1/events'
+      path: '/api/v1/events'
+      fullPath: '/api/v1/events'
+      preLoaderRoute: typeof ApiV1EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/health': {
+      id: '/api/v1/health'
+      path: '/api/v1/health'
+      fullPath: '/api/v1/health'
+      preLoaderRoute: typeof ApiV1HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/integrations': {
+      id: '/api/v1/integrations'
+      path: '/api/v1/integrations'
+      fullPath: '/api/v1/integrations'
+      preLoaderRoute: typeof ApiV1IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/openapi.json': {
+      id: '/api/v1/openapi.json'
+      path: '/api/v1/openapi.json'
+      fullPath: '/api/v1/openapi.json'
+      preLoaderRoute: typeof ApiV1OpenapiDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/ai/providers': {
+      id: '/api/v1/ai/providers'
+      path: '/api/v1/ai/providers'
+      fullPath: '/api/v1/ai/providers'
+      preLoaderRoute: typeof ApiV1AiProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/system/architecture': {
+      id: '/api/v1/system/architecture'
+      path: '/api/v1/system/architecture'
+      fullPath: '/api/v1/system/architecture'
+      preLoaderRoute: typeof ApiV1SystemArchitectureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiDocsRoute: ApiDocsRoute,
+  ApiV1EventsRoute: ApiV1EventsRoute,
+  ApiV1HealthRoute: ApiV1HealthRoute,
+  ApiV1IntegrationsRoute: ApiV1IntegrationsRoute,
+  ApiV1OpenapiDotjsonRoute: ApiV1OpenapiDotjsonRoute,
+  ApiV1AiProvidersRoute: ApiV1AiProvidersRoute,
+  ApiV1SystemArchitectureRoute: ApiV1SystemArchitectureRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

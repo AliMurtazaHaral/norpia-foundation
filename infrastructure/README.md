@@ -34,3 +34,11 @@
 - SQL migrations: `infrastructure/db/migrations/` (auto-applied on first DB boot).
 - Env template: `.env.example` (placeholders only; `.env` is git-ignored).
 - Instructions: `docs/development-environment.md`.
+
+## Production (self-hosted VPS)
+
+- Stack: `docker-compose.prod.yml` — Nginx (`infrastructure/nginx/norpia.conf`) → app (Nitro
+  node-server on :3000) → Postgres 16 (internal only, named volume).
+- Build preset: `SERVER_PRESET=node-server` (`bun run build:node`, `bun run start`).
+- Env template: `.env.production.example` → `.env.production` on the server (git-ignored).
+- Full runbook: `docs/deployment.md`.

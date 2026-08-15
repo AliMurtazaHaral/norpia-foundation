@@ -6,10 +6,16 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// Self-hosting (VPS/Docker) sets SERVER_PRESET=node-server so Nitro emits a standalone
+// Node server at .output/server/index.mjs. Unset -> the managed edge build is used.
+const selfHostPreset = process.env['SERVER_PRESET'];
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  ...(selfHostPreset ? { nitro: { preset: selfHostPreset } } : {}),
 });
+

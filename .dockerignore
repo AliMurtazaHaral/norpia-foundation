@@ -8,5 +8,4 @@ dist
 !.env.example
 *.log
 tsconfig.tsbuildinfo
-.env.production
-infrastructure/nginx/certs
+.vercel

@@ -1,78 +1,90 @@
-# Deployment — self-managed VPS (Docker)
+# Deployment — Vercel
 
-NORPIA ships as one container (TanStack Start app, SSR + `/api/v1`) behind Nginx, with
-Postgres 16 in the same compose stack.
+NORPIA is one TanStack Start app (SSR UI + `/api/v1`). On Vercel it is built with the Nitro
+**vercel** preset, which emits the Build Output API layout (`.vercel/output`): static client
+assets on the CDN and the SSR/API handler as a serverless function.
 
 ```text
-Internet ──▶ Nginx (:80)  ──▶ app (:3000, Nitro node-server) ──▶ db (:5432, internal only)
+Browser ──▶ Vercel CDN (static assets) ──▶ SSR + /api/v1 function ──▶ managed Postgres (DATABASE_URL)
 ```
 
-## Build target
+Local development still uses Docker (`docker compose up`) — see `docs/development-environment.md`.
 
-The default build targets an edge worker. Self-hosting uses the Nitro **node-server**
-preset, selected by `SERVER_PRESET=node-server` (set in the Docker `build` stage, and
-available locally via `bun run build:node` + `bun run start`).
+## Project settings
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | Other |
+| Install command | `bun install --frozen-lockfile` |
+| Build command | `SERVER_PRESET=vercel vite build` (or `bun run build:vercel`) |
+| Output directory | leave empty (Build Output API is detected automatically) |
+| Node.js version | 20.x or newer |
+
+These are already declared in `vercel.json`, so a fresh import needs no manual overrides.
 
 ## First deploy
 
 ```bash
-# on the VPS, as a non-root user in the docker group
-git clone <repo> norpia && cd norpia
-cp .env.production.example .env.production
-# edit .env.production: strong POSTGRES_PASSWORD, APP_ORIGIN=http://<VPS_IP>
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+npm i -g vercel
+vercel link
+vercel env pull .env.local     # optional: mirror remote env locally
+vercel --prod
 ```
 
-Verify:
+Or connect the Git repository in the Vercel dashboard: every push to the default branch ships
+to production, other branches get preview deployments.
 
-```bash
-curl -s http://localhost/api/v1/health
-docker compose -f docker-compose.prod.yml ps
-```
+## Environment variables
 
-## Updating
+Set these in Vercel → Project → Settings → Environment Variables (Production + Preview):
 
-```bash
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker image prune -f
-```
+| Key | Scope | Notes |
+| --- | --- | --- |
+| `APP_NAME` | server | Defaults to `NORPIA` |
+| `LOG_LEVEL` | server | `info` in production |
+| `DATABASE_URL` | server | Managed Postgres (Vercel Postgres / Neon / Supabase). Use the **pooled** connection string — serverless functions open many short-lived connections |
+| `DATABASE_POOL_MAX` | server | Keep low (e.g. `5`) on serverless |
+| `STORAGE_*` | server | Phase 2 |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | server | Week 4, leave unset for now |
+| `N8N_API_KEY`, `MCP_SERVER_URL` | server | Phase 2 |
+| `VITE_APP_ENV` | client | `production` |
+| `VITE_API_BASE_URL` | client | `/api/v1` (same origin) |
 
-## Configuration rules
+Rules:
 
-- Server-only values live in `.env.production` (git-ignored) and are read inside handlers
-  via `src/backend/core/config.ts`.
-- `VITE_*` values are baked into the client bundle at **build** time — changing them
-  requires a rebuild, not just a restart.
-- `DATABASE_URL` points at the internal `db` service host; Postgres publishes no host port.
+- Server values are read inside handlers via `src/backend/core/config.ts` — never at module
+  scope, because Vercel injects env per invocation.
+- `VITE_*` values are inlined into the client bundle at **build** time; changing one requires a
+  redeploy, not just a restart. Never prefix a secret with `VITE_`.
+- `.env` / `.env.local` stay git-ignored; `.env.example` is the only committed template.
 
 ## Database
 
-- Migrations in `infrastructure/db/migrations/` run automatically on the **first** boot of an
-  empty volume. Apply later migrations explicitly:
-  ```bash
-  docker compose -f docker-compose.prod.yml exec -T db \
-    psql -U norpia -d norpia < infrastructure/db/migrations/0002_x.sql
-  ```
-- Backup / restore:
-  ```bash
-  docker compose -f docker-compose.prod.yml exec -T db pg_dump -U norpia norpia | gzip > backup-$(date +%F).sql.gz
-  gunzip -c backup-2026-08-15.sql.gz | docker compose -f docker-compose.prod.yml exec -T db psql -U norpia -d norpia
-  ```
+Vercel runs no database. Use a managed Postgres and point `DATABASE_URL` at its pooled endpoint.
+Migrations in `infrastructure/db/migrations/` are applied by you against that instance (the
+compose Postgres auto-applies them locally only):
 
-## Hardening checklist
+```bash
+psql "$DATABASE_URL" -f infrastructure/db/migrations/0001_foundation.sql
+```
 
-- Firewall: allow 22, 80 (and 443 later) only; the app and DB ports are not published.
-- Rotate `POSTGRES_PASSWORD` away from the template value before the first boot.
-- Container logs are capped via the json-file driver (10 MB × 5).
-- Health checks: container-level `HEALTHCHECK` hits `GET /api/v1/health`.
+## Runtime constraints (serverless)
 
-## Adding a domain + TLS (when available)
+- No long-lived processes, in-memory caches, or local filesystem writes outside `/tmp`.
+- The in-process event bus (`src/backend/events/`) is per-invocation; a durable transport is a
+  later-phase concern and the contract already allows swapping it.
+- Avoid Node-only native addons (`sharp`, `child_process`); prefer pure-JS or fetch-based clients.
 
-1. Point an A record at the VPS IP.
-2. Issue certs (certbot standalone or a `certbot/certbot` container) into
-   `infrastructure/nginx/certs/`.
-3. In `infrastructure/nginx/norpia.conf`, set `server_name`, uncomment the TLS block, and
-   redirect `:80` → `:443`.
-4. Uncomment the `443:443` port and the certs volume in `docker-compose.prod.yml`.
-5. Update `APP_ORIGIN` to `https://<domain>` and redeploy.
+## Verify a deployment
+
+```bash
+curl -s https://<deployment>/api/v1/health
+curl -s https://<deployment>/api/v1/system/architecture
+```
+
+Logs and per-request traces: Vercel → Project → Deployments → Functions.
+
+## Custom domain
+
+Add it in Vercel → Settings → Domains, point the DNS record Vercel shows, and TLS is issued
+automatically. No app change is required (the client calls `/api/v1` on the same origin).

@@ -6,12 +6,11 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "build:node": "SERVER_PRESET=node-server vite build",
+    "build:vercel": "SERVER_PRESET=vercel vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write .",
-    "start": "bun run .output/server/index.mjs"
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

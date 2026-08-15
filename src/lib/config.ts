@@ -4,10 +4,14 @@
  * Only VITE_* values land here; server secrets never cross this boundary.
  */
 
+const rawApiBaseUrl = (import.meta.env['VITE_API_BASE_URL'] as string | undefined)?.trim();
+const rawAppEnv = (import.meta.env['VITE_APP_ENV'] as string | undefined)?.trim();
+
 export const appConfig = {
   appName: "NORPIA",
-  environment: (import.meta.env['VITE_APP_ENV'] as string | undefined) ?? import.meta.env.MODE,
+  environment: rawAppEnv || import.meta.env.MODE,
   /** Same-origin by default; overridable when the API is hosted separately. */
-  apiBaseUrl: (import.meta.env['VITE_API_BASE_URL'] as string | undefined) ?? "/api/v1",
+  apiBaseUrl: rawApiBaseUrl || "/api/v1",
   isDevelopment: import.meta.env.DEV,
 } as const;
+

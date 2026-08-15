@@ -6,9 +6,9 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-// Self-hosting (VPS/Docker) sets SERVER_PRESET=node-server so Nitro emits a standalone
-// Node server at .output/server/index.mjs. Unset -> the managed edge build is used.
-const selfHostPreset = process.env['SERVER_PRESET'];
+// Vercel builds with SERVER_PRESET=vercel (see vercel.json) so Nitro emits the Build
+// Output API layout in .vercel/output. Unset -> the managed Lovable build is used.
+const deployPreset = process.env['SERVER_PRESET'];
 
 export default defineConfig({
   tanstackStart: {
@@ -16,6 +16,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  ...(selfHostPreset ? { nitro: { preset: selfHostPreset } } : {}),
+  ...(deployPreset ? { nitro: { preset: deployPreset } } : {}),
 });
 

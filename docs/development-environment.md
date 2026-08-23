@@ -62,3 +62,15 @@ bunx vitest run    # foundation tests
 `.env` is git-ignored; only `.env.example` (placeholders) is committed. Server
 secrets are read inside handlers via `getConfig()`. The browser only ever sees
 `VITE_*` values through `src/lib/config.ts`.
+
+### Supabase setup
+
+Set these browser-safe values in `.env`:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY` (optional for SDK usage, useful for dashboard parity)
+- `VITE_SUPABASE_PROJECT_ID`
+
+The frontend Supabase client lives in `src/lib/supabase/client.ts` and is
+configured from `src/lib/config.ts`.

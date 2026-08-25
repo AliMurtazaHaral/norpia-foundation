@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth/auth-context";
+import { mapAuthError } from "@/lib/auth/errors";
 import { signInSchema, signUpSchema } from "@/lib/auth/schemas";
 
 export const Route = createFileRoute("/auth")({
@@ -44,6 +45,8 @@ function AuthPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [verifyNotice, setVerifyNotice] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate({ to: "/dashboard", replace: true });
@@ -58,13 +61,17 @@ function AuthPage() {
     });
     if (!parsed.success) return setErrors(fieldErrors(parsed.error));
     setErrors({});
+    setFormError(null);
+    setVerifyNotice(null);
     setBusy(true);
     try {
       await signIn(parsed.data.email, parsed.data.password);
       toast.success("Signed in");
       navigate({ to: "/dashboard", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sign in failed");
+      const failure = mapAuthError(error);
+      setFormError(failure.message);
+      if (failure.kind === "unverified") setUnverifiedEmail(parsed.data.email);
     } finally {
       setBusy(false);
     }
@@ -82,6 +89,7 @@ function AuthPage() {
     });
     if (!parsed.success) return setErrors(fieldErrors(parsed.error));
     setErrors({});
+    setFormError(null);
     setBusy(true);
     try {
       const { needsEmailVerification } = await signUp(parsed.data);
@@ -90,11 +98,12 @@ function AuthPage() {
           `We sent a verification link to ${parsed.data.email}. Confirm your email address before signing in.`,
         );
         setTab("signin");
+        navigate({ to: "/verify-email" });
       } else {
         navigate({ to: "/dashboard", replace: true });
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Registration failed");
+      setFormError(mapAuthError(error).message);
     } finally {
       setBusy(false);
     }
@@ -114,6 +123,20 @@ function AuthPage() {
         {verifyNotice && (
           <div className="mt-6 rounded-md border border-accent/40 bg-accent/10 p-3 text-sm text-foreground">
             {verifyNotice}
+          </div>
+        )}
+
+        {formError && (
+          <div
+            role="alert"
+            className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
+          >
+            {formError}
+            {unverifiedEmail && (
+              <Link to="/verify-email" className="ml-1 font-medium underline">
+                Resend verification email
+              </Link>
+            )}
           </div>
         )}
 

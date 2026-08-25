@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, Boxes, Cpu, Plug, Radio, ShieldCheck } from "lucide-react";
 
 import { api } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,6 +45,7 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function Index() {
+  const { isAuthenticated } = useAuth();
   const architecture = useQuery({ queryKey: ["architecture"], queryFn: api.architecture });
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 30_000 });
 

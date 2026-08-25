@@ -66,7 +66,10 @@ function VerifyEmailPage() {
   }, [user?.email]);
 
   async function handleResend() {
-    if (!email) return toast.error("Enter the email address you registered with.");
+    if (!email) {
+      toast.error("Enter the email address you registered with.");
+      return;
+    }
     setBusy(true);
     try {
       await resendVerification(email);

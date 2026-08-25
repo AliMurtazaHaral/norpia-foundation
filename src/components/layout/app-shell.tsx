@@ -18,7 +18,7 @@ export function AppShell({
   children,
 }: {
   title: string;
-  description?: string;
+  description?: string | undefined;
   children: ReactNode;
 }) {
   const { profile, role, user, isEmailVerified, signOut } = useAuth();

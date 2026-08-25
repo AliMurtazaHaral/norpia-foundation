@@ -12,6 +12,9 @@ import { signInSchema, signUpSchema } from "@/lib/auth/schemas";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): { mode?: "signin" | "signup" } => ({
+    mode: search["mode"] === "signup" ? "signup" : "signin",
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — NORPIA" },
@@ -41,12 +44,17 @@ function fieldErrors(error: unknown): Record<string, string> {
 function AuthPage() {
   const { signIn, signUp, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState("signin");
+  const search = Route.useSearch();
+  const [tab, setTab] = useState<string>(search.mode ?? "signin");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [verifyNotice, setVerifyNotice] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTab(search.mode ?? "signin");
+  }, [search.mode]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate({ to: "/dashboard", replace: true });

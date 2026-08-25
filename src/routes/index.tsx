@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, Boxes, Cpu, Plug, Radio, ShieldCheck } from "lucide-react";
 
+import { SiteHeader } from "@/components/layout/site-header";
 import { api } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/auth-context";
 
@@ -50,7 +51,9 @@ function Index() {
   const health = useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 30_000 });
 
   return (
-    <main className="brand-grid-bg min-h-screen">
+    <>
+      <SiteHeader />
+      <main className="brand-grid-bg min-h-screen">
       <div className="mx-auto max-w-6xl px-6 py-16">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
@@ -194,6 +197,7 @@ function Index() {
         </footer>
       </div>
     </main>
+    </>
   );
 }
 

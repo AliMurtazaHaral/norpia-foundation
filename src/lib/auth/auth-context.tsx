@@ -49,6 +49,7 @@ interface AuthContextValue {
   signUp: (input: SignUpInput) => Promise<{ needsEmailVerification: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   updateProfile: (input: { firstName: string; lastName: string }) => Promise<void>;
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: input.email,
       password: input.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth`,
+        emailRedirectTo: `${window.location.origin}/verify-email`,
         // Role is deliberately NOT accepted from the client.
         data: { first_name: input.firstName, last_name: input.lastName },
       },
@@ -128,6 +129,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+  }, []);
+
+  const resendVerification = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/verify-email` },
+    });
+    if (error) throw error;
   }, []);
 
   const requestPasswordReset = useCallback(async (email: string) => {
@@ -173,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
+      resendVerification,
       requestPasswordReset,
       updatePassword,
       updateProfile,
@@ -185,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
+      resendVerification,
       requestPasswordReset,
       updatePassword,
       updateProfile,

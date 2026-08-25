@@ -211,9 +211,15 @@ insert into public.user_roles (user_id, role)
 select u.id, 'standard_user' from auth.users u
 on conflict (user_id, role) do nothing;
 
-insert into public.schema_migrations (version)
-values ('0002_auth_profiles')
-on conflict (version) do nothing;
+do $$
+begin
+  if to_regclass('public.schema_migrations') is not null then
+    insert into public.schema_migrations (version)
+    values ('0002_auth_profiles')
+    on conflict (version) do nothing;
+  end if;
+end
+$$;
 
 -- =====================================================================
 -- Promote someone to administrator (run manually, never from the app):

@@ -98,7 +98,6 @@ function AuthPage() {
           `We sent a verification link to ${parsed.data.email}. Confirm your email address before signing in.`,
         );
         setTab("signin");
-        navigate({ to: "/verify-email" });
       } else {
         navigate({ to: "/dashboard", replace: true });
       }

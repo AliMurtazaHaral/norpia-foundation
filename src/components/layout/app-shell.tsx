@@ -70,6 +70,14 @@ export function AppShell({
         </div>
       </header>
 
+      {profile?.is_active === false && (
+        <div className="border-b border-destructive/40 bg-destructive/10">
+          <div className="mx-auto max-w-5xl px-4 py-2 text-sm text-foreground">
+            This account is inactive. Contact your NORPIA administrator to restore access.
+          </div>
+        </div>
+      )}
+
       {!isEmailVerified && (
         <div className="border-b border-accent/40 bg-accent/10">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-foreground">

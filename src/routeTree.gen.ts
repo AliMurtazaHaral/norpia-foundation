@@ -10,7 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiDocsRouteImport } from './routes/api/docs'
 import { Route as ApiV1EventsRouteImport } from './routes/api/v1/events'
 import { Route as ApiV1HealthRouteImport } from './routes/api/v1/health'
@@ -24,10 +28,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiDocsRoute = ApiDocsRouteImport.update({
   id: '/api/docs',
@@ -68,6 +91,9 @@ const ApiV1SystemArchitectureRoute = ApiV1SystemArchitectureRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/docs': typeof ApiDocsRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
@@ -79,6 +105,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/docs': typeof ApiDocsRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
@@ -90,7 +119,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/api/docs': typeof ApiDocsRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
@@ -104,6 +137,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/dashboard'
     | '/api/docs'
     | '/api/v1/events'
     | '/api/v1/health'
@@ -115,6 +151,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/dashboard'
     | '/api/docs'
     | '/api/v1/events'
     | '/api/v1/health'
@@ -125,7 +164,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/auth'
+    | '/forgot-password'
+    | '/reset-password'
+    | '/_authenticated/dashboard'
     | '/api/docs'
     | '/api/v1/events'
     | '/api/v1/health'
@@ -137,7 +180,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ApiDocsRoute: typeof ApiDocsRoute
   ApiV1EventsRoute: typeof ApiV1EventsRoute
   ApiV1HealthRoute: typeof ApiV1HealthRoute
@@ -156,12 +202,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/docs': {
       id: '/api/docs'
@@ -215,9 +289,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ApiDocsRoute: ApiDocsRoute,
   ApiV1EventsRoute: ApiV1EventsRoute,
   ApiV1HealthRoute: ApiV1HealthRoute,

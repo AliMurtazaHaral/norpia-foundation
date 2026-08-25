@@ -64,7 +64,26 @@ function Index() {
               the layered structure, the versioned API surface, the internal event bus and the
               integration contracts everything else will be built on.
             </p>
+
+            <div className="mt-6">
+              {isAuthenticated ? (
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Open your account
+                </Link>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
           </div>
+
 
           <div className="brand-panel px-5 py-4">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">

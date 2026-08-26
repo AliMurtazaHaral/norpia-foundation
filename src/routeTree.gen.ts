@@ -27,6 +27,7 @@ import { Route as ApiV1EventsRouteImport } from './routes/api/v1/events'
 import { Route as ApiV1HealthRouteImport } from './routes/api/v1/health'
 import { Route as ApiV1IntegrationsRouteImport } from './routes/api/v1/integrations'
 import { Route as ApiV1OpenapiDotjsonRouteImport } from './routes/api/v1/openapi[.]json'
+import { Route as ApiV1AiChatRouteImport } from './routes/api/v1/ai/chat'
 import { Route as ApiV1AiProvidersRouteImport } from './routes/api/v1/ai/providers'
 import { Route as ApiV1SystemArchitectureRouteImport } from './routes/api/v1/system/architecture'
 
@@ -120,6 +121,11 @@ const ApiV1OpenapiDotjsonRoute = ApiV1OpenapiDotjsonRouteImport.update({
   path: '/api/v1/openapi.json',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1AiChatRoute = ApiV1AiChatRouteImport.update({
+  id: '/api/v1/ai/chat',
+  path: '/api/v1/ai/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1AiProvidersRoute = ApiV1AiProvidersRouteImport.update({
   id: '/api/v1/ai/providers',
   path: '/api/v1/ai/providers',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
     | '/chat/'
+    | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   fileRoutesByTo: FileRoutesByTo
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
     | '/chat'
+    | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   id:
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
     | '/_authenticated/chat/'
+    | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   fileRoutesById: FileRoutesById
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   ApiV1HealthRoute: typeof ApiV1HealthRoute
   ApiV1IntegrationsRoute: typeof ApiV1IntegrationsRoute
   ApiV1OpenapiDotjsonRoute: typeof ApiV1OpenapiDotjsonRoute
+  ApiV1AiChatRoute: typeof ApiV1AiChatRoute
   ApiV1AiProvidersRoute: typeof ApiV1AiProvidersRoute
   ApiV1SystemArchitectureRoute: typeof ApiV1SystemArchitectureRoute
 }
@@ -405,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1OpenapiDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/ai/chat': {
+      id: '/api/v1/ai/chat'
+      path: '/api/v1/ai/chat'
+      fullPath: '/api/v1/ai/chat'
+      preLoaderRoute: typeof ApiV1AiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/ai/providers': {
       id: '/api/v1/ai/providers'
       path: '/api/v1/ai/providers'
@@ -466,6 +486,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1HealthRoute: ApiV1HealthRoute,
   ApiV1IntegrationsRoute: ApiV1IntegrationsRoute,
   ApiV1OpenapiDotjsonRoute: ApiV1OpenapiDotjsonRoute,
+  ApiV1AiChatRoute: ApiV1AiChatRoute,
   ApiV1AiProvidersRoute: ApiV1AiProvidersRoute,
   ApiV1SystemArchitectureRoute: ApiV1SystemArchitectureRoute,
 }

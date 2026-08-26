@@ -40,7 +40,8 @@ export function mapChatError(error: unknown): string {
         : ((error as { message?: string } | null)?.message ?? "");
   const message = raw.toLowerCase();
 
-  if (!navigator.onLine || message.includes("failed to fetch") || message.includes("networkerror")) {
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (offline || message.includes("failed to fetch") || message.includes("networkerror")) {
     return "You appear to be offline. Check your connection and try again.";
   }
   if (message.includes("jwt") || message.includes("401") || message.includes("not authenticated")) {

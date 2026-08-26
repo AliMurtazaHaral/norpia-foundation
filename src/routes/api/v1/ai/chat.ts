@@ -13,6 +13,7 @@ import { z } from "zod";
 import { AiProviderError } from "@/backend/ai/chat-provider";
 import { getAiModelConfig, JARVIS_SYSTEM_PROMPT } from "@/backend/ai/jarvis-prompt";
 import { resolveChatProvider } from "@/backend/ai/openai-provider";
+import { appConfig } from "@/lib/config";
 
 const bodySchema = z.object({
   conversation_id: z.string().uuid(),
@@ -37,12 +38,13 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
   if (!token) return errorResponse("You must be signed in to talk to JARVIS.", 401);
 
-  const supabaseUrl = env("SUPABASE_URL") ?? env("VITE_SUPABASE_URL");
+  // Public project URL / anon key only — the service-role key is never used here.
+  const supabaseUrl = env("SUPABASE_URL") ?? env("VITE_SUPABASE_URL") ?? appConfig.supabase.url;
   const supabaseKey =
     env("SUPABASE_ANON_KEY") ??
     env("VITE_SUPABASE_ANON_KEY") ??
-    env("SUPABASE_PUBLISHABLE_KEY") ??
-    env("VITE_SUPABASE_PUBLISHABLE_KEY");
+    appConfig.supabase.anonKey ??
+    appConfig.supabase.publishableKey;
   if (!supabaseUrl || !supabaseKey) return errorResponse("Chat is not configured yet.", 503);
 
   // User-scoped client: every query below is additionally enforced by RLS.

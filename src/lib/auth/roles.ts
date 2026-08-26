@@ -19,6 +19,8 @@ export interface NavItem {
 
 export const APP_NAV: NavItem[] = [
   { label: "Dashboard", to: "/dashboard" },
+  { label: "JARVIS", to: "/chat" },
+
   { label: "Profile", to: "/profile" },
   { label: "Settings", to: "/settings" },
   { label: "Administration", to: "/admin", roles: ["administrator"] },

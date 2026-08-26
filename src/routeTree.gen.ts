@@ -16,10 +16,13 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiDocsRouteImport } from './routes/api/docs'
+import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
+import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_authenticated/chat.$conversationId'
 import { Route as ApiV1EventsRouteImport } from './routes/api/v1/events'
 import { Route as ApiV1HealthRouteImport } from './routes/api/v1/health'
 import { Route as ApiV1IntegrationsRouteImport } from './routes/api/v1/integrations'
@@ -61,6 +64,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -81,6 +89,17 @@ const ApiDocsRoute = ApiDocsRouteImport.update({
   path: '/api/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedChatIndexRoute = AuthenticatedChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedChatRoute,
+} as any)
+const AuthenticatedChatConversationIdRoute =
+  AuthenticatedChatConversationIdRouteImport.update({
+    id: '/$conversationId',
+    path: '/$conversationId',
+    getParentRoute: () => AuthenticatedChatRoute,
+  } as any)
 const ApiV1EventsRoute = ApiV1EventsRouteImport.update({
   id: '/api/v1/events',
   path: '/api/v1/events',
@@ -119,14 +138,17 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/chat': typeof AuthenticatedChatRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/docs': typeof ApiDocsRoute
+  '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/chat/': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -141,10 +163,12 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/docs': typeof ApiDocsRoute
+  '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/chat': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -157,14 +181,17 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/chat': typeof AuthenticatedChatRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/docs': typeof ApiDocsRoute
+  '/_authenticated/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/v1/events': typeof ApiV1EventsRoute
   '/api/v1/health': typeof ApiV1HealthRoute
   '/api/v1/integrations': typeof ApiV1IntegrationsRoute
   '/api/v1/openapi.json': typeof ApiV1OpenapiDotjsonRoute
+  '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
 }
@@ -177,14 +204,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/admin'
+    | '/chat'
     | '/dashboard'
     | '/profile'
     | '/settings'
     | '/api/docs'
+    | '/chat/$conversationId'
     | '/api/v1/events'
     | '/api/v1/health'
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
+    | '/chat/'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   fileRoutesByTo: FileRoutesByTo
@@ -199,10 +229,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/api/docs'
+    | '/chat/$conversationId'
     | '/api/v1/events'
     | '/api/v1/health'
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
+    | '/chat'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   id:
@@ -214,14 +246,17 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/_authenticated/admin'
+    | '/_authenticated/chat'
     | '/_authenticated/dashboard'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/api/docs'
+    | '/_authenticated/chat/$conversationId'
     | '/api/v1/events'
     | '/api/v1/health'
     | '/api/v1/integrations'
     | '/api/v1/openapi.json'
+    | '/_authenticated/chat/'
     | '/api/v1/ai/providers'
     | '/api/v1/system/architecture'
   fileRoutesById: FileRoutesById
@@ -293,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/chat': {
+      id: '/_authenticated/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AuthenticatedChatRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -320,6 +362,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/docs'
       preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/chat/': {
+      id: '/_authenticated/chat/'
+      path: '/'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof AuthenticatedChatIndexRouteImport
+      parentRoute: typeof AuthenticatedChatRoute
+    }
+    '/_authenticated/chat/$conversationId': {
+      id: '/_authenticated/chat/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/chat/$conversationId'
+      preLoaderRoute: typeof AuthenticatedChatConversationIdRouteImport
+      parentRoute: typeof AuthenticatedChatRoute
     }
     '/api/v1/events': {
       id: '/api/v1/events'
@@ -366,8 +422,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedChatRouteChildren {
+  AuthenticatedChatConversationIdRoute: typeof AuthenticatedChatConversationIdRoute
+  AuthenticatedChatIndexRoute: typeof AuthenticatedChatIndexRoute
+}
+
+const AuthenticatedChatRouteChildren: AuthenticatedChatRouteChildren = {
+  AuthenticatedChatConversationIdRoute: AuthenticatedChatConversationIdRoute,
+  AuthenticatedChatIndexRoute: AuthenticatedChatIndexRoute,
+}
+
+const AuthenticatedChatRouteWithChildren =
+  AuthenticatedChatRoute._addFileChildren(AuthenticatedChatRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedChatRoute: typeof AuthenticatedChatRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -375,6 +445,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedChatRoute: AuthenticatedChatRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

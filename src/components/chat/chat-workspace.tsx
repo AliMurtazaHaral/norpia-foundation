@@ -9,10 +9,9 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { streamAssistantReply } from "@/lib/chat/ai-client";
 import {
-  buildConversationContext,
   createConversation,
-  createMessage,
   deleteConversation,
   deriveTitle,
   listConversations,
@@ -23,14 +22,12 @@ import {
   type ChatMessage,
 } from "@/lib/chat/chat-api";
 
-const PENDING_ASSISTANT_NOTICE =
-  "OpenAI is not connected yet (Week 4, prompt 2). Your message has been saved and JARVIS will answer once the model is wired up.";
-
 export function ChatWorkspace({ conversationId }: { conversationId?: string | undefined }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [streamed, setStreamed] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +50,7 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, isSending]);
+  }, [messages.length, isSending, streamed]);
 
   const newConversation = useMutation({
     mutationFn: () => createConversation(),
@@ -85,6 +82,7 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
     if (isSending) return;
 
     setIsSending(true);
+    setStreamed("");
     try {
       let targetId = conversationId;
       if (!targetId) {
@@ -94,37 +92,43 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
         await navigate({ to: "/chat/$conversationId", params: { conversationId: targetId } });
       }
 
-      await createMessage({ conversationId: targetId, role: "user", content });
       setDraft("");
 
-      const history = await listMessages(targetId);
-      queryClient.setQueryData(["messages", targetId], history);
-
-      // Rename a still-default conversation after its first user message.
+      // Lightweight, local title extraction — no extra model call.
       const current = conversationsQuery.data?.find((c) => c.id === targetId);
-      if (!current || current.title === DEFAULT_CONVERSATION_TITLE) {
+      if (current && current.title === DEFAULT_CONVERSATION_TITLE) {
         await renameConversation(targetId, deriveTitle(content));
       }
 
-      // Context payload the OpenAI call (prompt 2) will consume.
-      const context = buildConversationContext(history, {
-        systemPrompt: "You are JARVIS, the NORPIA AI operating system assistant.",
-      });
-      void context;
+      // Optimistic user bubble; the server is the one that persists it.
+      queryClient.setQueryData<ChatMessage[]>(["messages", targetId], (previous) => [
+        ...(previous ?? []),
+        {
+          id: `optimistic-${Date.now()}`,
+          conversation_id: targetId as string,
+          user_id: "self",
+          role: "user",
+          content,
+          metadata: {},
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
-      await createMessage({
+      await streamAssistantReply({
         conversationId: targetId,
-        role: "assistant",
-        content: PENDING_ASSISTANT_NOTICE,
-        metadata: { placeholder: true },
+        message: content,
+        onDelta: (text) => setStreamed(text),
       });
-
-      await queryClient.invalidateQueries({ queryKey: ["messages", targetId] });
-      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (error) {
       toast.error(mapChatError(error));
     } finally {
       setIsSending(false);
+      setStreamed("");
+      if (conversationId) {
+        await queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await messagesQuery.refetch();
     }
   }
 
@@ -184,7 +188,20 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
               <ChatMessageBubble key={message.id} message={message} />
             ))}
 
-            {isSending && <ThinkingBubble />}
+            {isSending && streamed && (
+              <ChatMessageBubble
+                message={{
+                  id: "streaming",
+                  conversation_id: conversationId ?? "",
+                  user_id: "assistant",
+                  role: "assistant",
+                  content: streamed,
+                  metadata: {},
+                  created_at: new Date().toISOString(),
+                }}
+              />
+            )}
+            {isSending && !streamed && <ThinkingBubble />}
             <div ref={bottomRef} />
           </div>
 

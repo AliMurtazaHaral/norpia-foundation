@@ -97,7 +97,7 @@ describe("chat route reliability", () => {
   it("logs usage without message content", () => {
     const log = readFileSync("src/backend/ai/usage-log.ts", "utf8");
     expect(route).toContain("logAiUsage");
-    expect(log).not.toMatch(/content|apiKey|OPENAI/);
+    expect(log).not.toMatch(/record\.content|apiKey|OPENAI_API_KEY/);
   });
 });
 

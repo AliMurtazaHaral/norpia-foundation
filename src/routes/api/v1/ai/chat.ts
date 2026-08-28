@@ -11,14 +11,21 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { AiProviderError } from "@/backend/ai/chat-provider";
-import { getAiModelConfig, JARVIS_SYSTEM_PROMPT } from "@/backend/ai/jarvis-prompt";
+import { buildChatContext, estimateTokens, type StoredTurn } from "@/backend/ai/context-manager";
+import { getAiModelConfig } from "@/backend/ai/jarvis-prompt";
 import { resolveChatProvider } from "@/backend/ai/openai-provider";
+import { logAiUsage } from "@/backend/ai/usage-log";
 import { appConfig } from "@/lib/config";
 
 const bodySchema = z.object({
   conversation_id: z.string().uuid(),
   message: z.string().trim().min(1).max(32000),
+  /** Set by the client when re-sending after a failure, to avoid duplicates. */
+  retry: z.boolean().optional(),
 });
+
+/** A user message repeated within this window is treated as a duplicate submit. */
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 
 function env(name: string): string | undefined {
   return typeof process !== "undefined" ? process.env?.[name] : undefined;
@@ -33,6 +40,7 @@ function errorResponse(message: string, status: number) {
 
 async function handlePost({ request }: { request: Request }): Promise<Response> {
   const config = getAiModelConfig();
+  const startedAt = Date.now();
 
   const authHeader = request.headers.get("Authorization") ?? "";
   const token = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
@@ -83,15 +91,31 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   }
 
   // 1. Persist the user message first, so nothing is lost if the model fails.
-  const { error: userMessageError } = await supabase.from("messages").insert({
-    conversation_id: conversation.id,
-    user_id: user.id,
-    role: "user",
-    content: payload.message,
-  });
-  if (userMessageError) return errorResponse("Your message could not be saved.", 500);
+  //    Duplicate submissions and retries reuse the message already stored.
+  const { data: lastRows } = await supabase
+    .from("messages")
+    .select("id, role, content, created_at")
+    .eq("conversation_id", conversation.id)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const last = lastRows?.[0];
+  const isDuplicate =
+    Boolean(last) &&
+    last!.role === "user" &&
+    last!.content === payload.message &&
+    Date.now() - new Date(last!.created_at as string).getTime() < DUPLICATE_WINDOW_MS;
 
-  // 2. Build a bounded context window (cost control).
+  if (!isDuplicate) {
+    const { error: userMessageError } = await supabase.from("messages").insert({
+      conversation_id: conversation.id,
+      user_id: user.id,
+      role: "user",
+      content: payload.message,
+    });
+    if (userMessageError) return errorResponse("Your message could not be saved.", 500);
+  }
+
+  // 2. Build a bounded context window (basic memory + cost control).
   const { data: history, error: historyError } = await supabase
     .from("messages")
     .select("role, content, created_at")
@@ -100,19 +124,21 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
     .limit(config.maxHistoryMessages);
   if (historyError) return errorResponse("Could not load the conversation history.", 500);
 
-  const turns = (history ?? [])
+  const stored: StoredTurn[] = (history ?? [])
     .slice()
     .reverse()
-    .map((m) => ({ role: m.role as "user" | "assistant" | "system", content: m.content }));
+    .map((m) => ({ role: m.role as StoredTurn["role"], content: m.content as string }));
 
-  const messages = [{ role: "system" as const, content: JARVIS_SYSTEM_PROMPT }, ...turns];
+  const { messages, stats } = buildChatContext({ history: stored, config });
 
   const provider = resolveChatProvider(config.provider);
   const encoder = new TextEncoder();
+  const estimatedInputTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
+      let status: "completed" | "interrupted" | "empty" = "completed";
       try {
         for await (const chunk of provider.streamChat({
           messages,
@@ -125,6 +151,7 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
         }
 
         if (!full.trim()) {
+          status = "empty";
           controller.enqueue(
             encoder.encode("\n\n[JARVIS returned an empty response. Please try again.]"),
           );
@@ -135,10 +162,16 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             user_id: user.id,
             role: "assistant",
             content: full,
-            metadata: { provider: provider.id, model: config.model },
+            metadata: {
+              provider: provider.id,
+              model: config.model,
+              prompt_version: stats.promptVersion,
+              context_messages: stats.historyMessages,
+            },
           });
         }
       } catch (error) {
+        status = "interrupted";
         const message =
           error instanceof AiProviderError
             ? error.message
@@ -150,10 +183,28 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             user_id: user.id,
             role: "assistant",
             content: `${full}\n\n[${message}]`,
-            metadata: { provider: provider.id, model: config.model, interrupted: true },
+            metadata: {
+              provider: provider.id,
+              model: config.model,
+              prompt_version: stats.promptVersion,
+              interrupted: true,
+            },
           });
         }
       } finally {
+        logAiUsage({
+          conversationId: conversation.id,
+          userId: user.id,
+          provider: provider.id,
+          model: config.model,
+          promptVersion: stats.promptVersion,
+          historyMessages: stats.historyMessages,
+          droppedMessages: stats.droppedMessages,
+          estimatedInputTokens,
+          estimatedOutputTokens: estimateTokens(full),
+          durationMs: Date.now() - startedAt,
+          status,
+        });
         controller.close();
       }
     },

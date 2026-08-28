@@ -1,3 +1,5 @@
+import { Check, Copy } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -50,11 +52,15 @@ export function MarkdownContent({ content }: { content: string }) {
               </code>
             );
           },
-          pre: ({ node: _node, ...props }) => (
-            <pre
-              {...props}
-              className="overflow-x-auto rounded-lg border border-border bg-background/70 p-3"
-            />
+          pre: ({ node: _node, children, ...props }) => (
+            <CodeBlock>
+              <pre
+                {...props}
+                className="overflow-x-auto rounded-lg border border-border bg-background/70 p-3"
+              >
+                {children}
+              </pre>
+            </CodeBlock>
           ),
           blockquote: ({ node: _node, ...props }) => (
             <blockquote
@@ -66,6 +72,37 @@ export function MarkdownContent({ content }: { content: string }) {
       >
         {content}
       </ReactMarkdown>
+    </div>
+  );
+}
+
+/** Wraps a fenced code block and adds a copy-to-clipboard control. */
+function CodeBlock({ children }: { children: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy(event: React.MouseEvent<HTMLButtonElement>) {
+    const container = event.currentTarget.parentElement;
+    const text = container?.querySelector("pre")?.innerText ?? "";
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable (insecure context) — silently ignore */
+    }
+  }
+
+  return (
+    <div className="group/code relative">
+      {children}
+      <button
+        type="button"
+        onClick={(event) => void copy(event)}
+        aria-label={copied ? "Code copied" : "Copy code"}
+        className="absolute right-2 top-2 rounded border border-border bg-card/90 p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover/code:opacity-100"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
     </div>
   );
 }

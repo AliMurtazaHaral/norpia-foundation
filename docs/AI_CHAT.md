@@ -1,43 +1,164 @@
-# JARVIS AI Chat (Week 4)
+# NORPIA — JARVIS AI Chat (Week 4)
 
-## Flow
-Browser → `POST /api/v1/ai/chat` (server route, secrets stay server-side) → OpenAI → streamed back to the browser.
-The browser never calls OpenAI and never sees `OPENAI_API_KEY`.
+## 1. Architecture
 
-> Note: this project is a TanStack Start app deployed on Vercel, not a Next.js/Supabase-Functions
-> app. The server route is the equivalent of the requested Edge Function: same trust boundary
-> (server-only secret, Supabase-token auth, RLS-scoped queries), one less runtime to deploy.
+```
+Browser (React / TanStack Start)
+  └─ src/components/chat/*        chat UI, streaming, retry, markdown
+  └─ src/lib/chat/chat-api.ts     Supabase CRUD (RLS-scoped)
+  └─ src/lib/chat/ai-client.ts    fetch bridge, sends the Supabase token only
+        │  POST /api/v1/ai/chat   (Authorization: Bearer <supabase access token>)
+        ▼
+Server route  src/routes/api/v1/ai/chat.ts
+  ├─ auth        supabase.auth.getUser() from the bearer token
+  ├─ ownership   conversation.user_id === user.id (plus RLS)
+  ├─ persistence user message stored BEFORE the model call
+  ├─ context     src/backend/ai/context-manager.ts
+  ├─ prompt      src/backend/ai/jarvis-prompt.ts (versioned registry)
+  ├─ provider    src/backend/ai/openai-provider.ts → OpenAI (streaming)
+  └─ usage       src/backend/ai/usage-log.ts (content-free)
+```
 
-## Authentication
-The route reads the Supabase access token from the `Authorization: Bearer` header and resolves the
-user with `supabase.auth.getUser()`. Any `user_id` sent by the client is ignored. All database
-queries run through a user-scoped Supabase client, so RLS enforces ownership a second time.
+> This project is a TanStack Start app on Vercel, not Next.js/Supabase Functions.
+> The server route is the equivalent of the requested Edge Function: same trust
+> boundary (server-only secret, Supabase-token auth, RLS-scoped queries), one
+> less runtime to deploy.
 
-## Validation
-- `conversation_id` must be a UUID, must exist, and must belong to the caller.
-- `message` must be non-empty and within `AI_MAX_MESSAGE_LENGTH` (default 8000 chars).
+## 2. Supabase schema
 
-## Persistence
-1. User message is inserted before the model call (never lost on failure).
-2. History is loaded (last `AI_MAX_HISTORY_MESSAGES` messages of that conversation only).
-3. The completed assistant message is inserted once, with `{ provider, model }` metadata.
-   A partially streamed answer that fails mid-way is stored with `interrupted: true`.
+| Table | Columns | Notes |
+| --- | --- | --- |
+| `public.conversations` | `id`, `user_id → auth.users`, `title`, `metadata`, `created_at`, `updated_at` | `updated_at` refreshed by trigger on new messages |
+| `public.messages` | `id`, `conversation_id → conversations`, `user_id`, `role` (`message_role` enum), `content`, `metadata`, `created_at` | ownership resolved through the parent conversation |
 
-## Configuration
+Indexes (migration `0005_chat_performance.sql`):
+
+- `idx_conversations_user_updated (user_id, updated_at desc)` — sidebar list
+- `idx_messages_conversation_created (conversation_id, created_at)` — transcript + context window
+- `idx_messages_user` dropped: redundant, only cost insert throughput.
+
+Migrations to run in order: `0004_chat.sql`, then `0005_chat_performance.sql`.
+
+## 3. Authentication flow
+
+1. The browser holds a Supabase session (Week 3 auth).
+2. `ai-client.ts` attaches `Authorization: Bearer <access_token>`; no other identity is sent.
+3. The route resolves the user with `supabase.auth.getUser()` — any `user_id` in the payload is ignored.
+4. Every query runs through a user-scoped client, so RLS enforces ownership a second time.
+5. `/chat` lives under `_authenticated`, so unauthenticated users never reach the UI.
+
+## 4. Conversation memory & context management
+
+`src/backend/ai/context-manager.ts` is the only place that decides what the model sees:
+
+- loads the newest `MAX_CONTEXT_MESSAGES` rows of **that conversation only**;
+- applies a `MAX_CONTEXT_CHARACTERS` budget newest-first, dropping the oldest turns;
+- always keeps the latest message, even when it alone exceeds the budget;
+- returns `stats` (counts only) used for usage logging.
+
+Result: JARVIS resolves references across turns ("My company is called NORPIA."
+→ later "What should I focus on for the company?") without unbounded token spend.
+
+Clear separation of concerns in the request sent upstream:
+
+```
+[system]  versioned JARVIS prompt
+[system]  memory blocks   (extension point — empty today)
+[history] bounded recent turns, oldest → newest
+[user]    the current message (last history turn)
+```
+
+## 5. System prompt
+
+`src/backend/ai/jarvis-prompt.ts` holds a **versioned registry** (`PROMPT_VERSIONS`),
+selected with `AI_PROMPT_VERSION`. Each assistant message stores
+`metadata.prompt_version`, so past answers stay traceable to the prompt that
+produced them. The prompt states that JARVIS can only execute an action when the
+required integration or tool is actually connected — today none are.
+
+## 6. Token & cost management
+
 | Var | Default | Purpose |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | – | Server-only secret |
 | `AI_MODEL` | `gpt-4o-mini` | Model id, single source of truth |
-| `AI_MAX_OUTPUT_TOKENS` | `1024` | Output cap (cost control) |
+| `AI_PROMPT_VERSION` | `v1` | Active system prompt |
 | `AI_TEMPERATURE` | `0.4` | Sampling |
-| `AI_MAX_HISTORY_MESSAGES` | `20` | Context window (cost control) |
-| `AI_MAX_MESSAGE_LENGTH` | `8000` | Input cap |
+| `MAX_OUTPUT_TOKENS` | `1024` | Output cap |
+| `MAX_CONTEXT_MESSAGES` | `20` | History window |
+| `MAX_CONTEXT_CHARACTERS` | `24000` | Input budget |
+| `MAX_MESSAGE_LENGTH` | `8000` | Single message cap (enforced client + server) |
 
-## Extending to other providers
-`src/backend/ai/chat-provider.ts` defines the `ChatProvider` streaming contract.
-`resolveChatProvider()` in `src/backend/ai/openai-provider.ts` is the registry — add Anthropic or
-Gemini there; no call sites change.
+Legacy `AI_MAX_*` names are still honoured. Additional controls:
 
-## Persona
-`src/backend/ai/jarvis-prompt.ts` holds the isolated system prompt. It forbids JARVIS from claiming
-access to email, calendars, files, or CRM systems until those integrations exist.
+- duplicate/retry submissions reuse the stored user message (2-minute window);
+- the client blocks concurrent sends and over-limit drafts before any request;
+- titles are derived locally — no extra model call;
+- `logAiUsage` records provider, model, message counts, estimated tokens,
+  duration and status. Content and secrets are never logged.
+
+## 7. Reliability & UX
+
+- Streaming deltas rendered progressively, with a thinking indicator before the first token.
+- Failure surfaces an inline error with a **Retry** button; retry never duplicates the user message.
+- Partial answers interrupted mid-stream are stored with `metadata.interrupted = true`.
+- Empty state with starter suggestions, auto-scroll, skeleton loaders, character counter.
+- Markdown with GFM, safe rendering (no raw HTML), code blocks with a copy button.
+- Responsive: sidebar stacks above the transcript on mobile.
+
+## 8. Security review (Week 4)
+
+- RLS enabled on `conversations` and `messages`; policies scope every row to `auth.uid()`.
+- Ownership re-checked explicitly in the route before any write.
+- `OPENAI_API_KEY` is read only inside the provider module, server-side; never sent to the browser, never logged.
+- The service-role key is never used by the chat path.
+- Upstream error bodies are never echoed to the client.
+- Automated coverage in `tests/ai-chat.test.ts` and `tests/chat-context.test.ts`.
+
+## 9. Known limitations
+
+- No conversation summarisation: very long conversations lose their oldest turns.
+- Memory is per-conversation; nothing is remembered across conversations.
+- Token counts are estimates (~4 chars/token), not billed usage.
+- Streaming cannot be stopped mid-answer.
+- Usage logs go to the platform log stream, not a metering table.
+
+## 10. Future architecture (not implemented)
+
+`MemorySource` in `context-manager.ts` is the single insertion point for later phases:
+conversation summarisation, long-term memory, and RAG retrieval all implement it and
+their output is injected as memory blocks — no call-site changes. Providers plug into
+`resolveChatProvider`; MCP, n8n and multi-agent orchestration remain out of scope.
+
+---
+
+## WEEK 4 COMPLETION REPORT
+
+| Criterion | Status |
+| --- | --- |
+| JARVIS chat interface works | Done |
+| New conversations work | Done |
+| Conversation history works | Done |
+| Messages persist in Supabase | Done |
+| OpenAI integration works | Done |
+| OpenAI key is server-side | Done |
+| Streaming responses work | Done |
+| Markdown works | Done |
+| Code blocks work (with copy) | Done |
+| Loading states work | Done |
+| Error states work | Done |
+| Retry works (no duplicate messages) | Done |
+| Basic conversation memory works | Done |
+| Context management works | Done |
+| System prompt configurable & versioned | Done |
+| RLS protects conversations | Done |
+| User-specific data isolation | Done |
+| Authentication enforced | Done |
+| Basic cost control implemented | Done |
+| Documentation updated | Done |
+
+Deliberately excluded (later phases): advanced RAG, MCP, n8n, AI Employees,
+multi-agent orchestration, billing.
+
+Action required: run `infrastructure/db/migrations/0005_chat_performance.sql`
+in the Supabase SQL editor.

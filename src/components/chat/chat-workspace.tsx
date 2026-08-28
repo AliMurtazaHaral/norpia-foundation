@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 
 import { ChatMessageBubble, ThinkingBubble } from "@/components/chat/chat-message";
@@ -22,14 +23,25 @@ import {
   type ChatMessage,
 } from "@/lib/chat/chat-api";
 
+/** Mirrors MAX_MESSAGE_LENGTH on the server — fail fast, before a round trip. */
+const MAX_MESSAGE_LENGTH = 8000;
+
+const SUGGESTIONS = [
+  "Summarise what NORPIA should focus on this quarter.",
+  "Draft a short project brief for a new internal tool.",
+  "Explain this error and how to fix it.",
+];
+
 export function ChatWorkspace({ conversationId }: { conversationId?: string | undefined }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [streamed, setStreamed] = useState("");
+  const [failed, setFailed] = useState<{ message: string; content: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
 
   const conversationsQuery = useQuery({
     queryKey: ["conversations"],
@@ -73,71 +85,93 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
     onError: (error) => toast.error(mapChatError(error)),
   });
 
-  async function handleSend() {
-    const content = draft.trim();
-    if (!content) {
-      toast.error("Write a message first.");
-      return;
-    }
-    if (isSending) return;
-
-    setIsSending(true);
-    setStreamed("");
-    try {
-      let targetId = conversationId;
-      if (!targetId) {
-        const created = await createConversation(deriveTitle(content));
-        targetId = created.id;
-        await queryClient.invalidateQueries({ queryKey: ["conversations"] });
-        await navigate({ to: "/chat/$conversationId", params: { conversationId: targetId } });
+  /**
+   * One send path for both the first attempt and a retry. On retry the message
+   * is already persisted server-side, so `retry` tells the API to reuse it
+   * instead of inserting a duplicate user message.
+   */
+  const send = useCallback(
+    async (content: string, options: { retry?: boolean } = {}) => {
+      if (sendingRef.current) return;
+      const trimmed = content.trim();
+      if (!trimmed) {
+        toast.error("Write a message first.");
+        return;
+      }
+      if (trimmed.length > MAX_MESSAGE_LENGTH) {
+        toast.error(`That message is too long (limit ${MAX_MESSAGE_LENGTH} characters).`);
+        return;
       }
 
-      setDraft("");
-
-      // Lightweight, local title extraction — no extra model call.
-      const current = conversationsQuery.data?.find((c) => c.id === targetId);
-      if (current && current.title === DEFAULT_CONVERSATION_TITLE) {
-        await renameConversation(targetId, deriveTitle(content));
-      }
-
-      // Optimistic user bubble; the server is the one that persists it.
-      queryClient.setQueryData<ChatMessage[]>(["messages", targetId], (previous) => [
-        ...(previous ?? []),
-        {
-          id: `optimistic-${Date.now()}`,
-          conversation_id: targetId as string,
-          user_id: "self",
-          role: "user",
-          content,
-          metadata: {},
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      await streamAssistantReply({
-        conversationId: targetId,
-        message: content,
-        onDelta: (text) => setStreamed(text),
-      });
-    } catch (error) {
-      toast.error(mapChatError(error));
-    } finally {
-      setIsSending(false);
+      sendingRef.current = true;
+      setIsSending(true);
       setStreamed("");
-      if (conversationId) {
-        await queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      setFailed(null);
+
+      let targetId = conversationId;
+      try {
+        if (!targetId) {
+          const created = await createConversation(deriveTitle(trimmed));
+          targetId = created.id;
+          await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+          await navigate({ to: "/chat/$conversationId", params: { conversationId: targetId } });
+        }
+
+        if (!options.retry) setDraft("");
+
+        // Lightweight, local title extraction — no extra model call.
+        const current = conversationsQuery.data?.find((c) => c.id === targetId);
+        if (current && current.title === DEFAULT_CONVERSATION_TITLE) {
+          await renameConversation(targetId, deriveTitle(trimmed));
+        }
+
+        if (!options.retry) {
+          // Optimistic user bubble; the server is the one that persists it.
+          queryClient.setQueryData<ChatMessage[]>(["messages", targetId], (previous) => [
+            ...(previous ?? []),
+            {
+              id: `optimistic-${Date.now()}`,
+              conversation_id: targetId as string,
+              user_id: "self",
+              role: "user",
+              content: trimmed,
+              metadata: {},
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
+
+        await streamAssistantReply({
+          conversationId: targetId,
+          message: trimmed,
+          retry: options.retry ?? false,
+          onDelta: (text) => setStreamed(text),
+        });
+      } catch (error) {
+        const message = mapChatError(error);
+        setFailed({ message, content: trimmed });
+        toast.error(message);
+      } finally {
+        sendingRef.current = false;
+        setIsSending(false);
+        setStreamed("");
+        if (targetId) {
+          await queryClient.invalidateQueries({ queryKey: ["messages", targetId] });
+        }
+        await queryClient.invalidateQueries({ queryKey: ["conversations"] });
       }
-      await queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      await messagesQuery.refetch();
-    }
-  }
+    },
+    [conversationId, conversationsQuery.data, navigate, queryClient],
+  );
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      void handleSend();
+      void send(draft);
     }
   }
+
+  const overLimit = draft.length > MAX_MESSAGE_LENGTH;
 
   return (
     <AppShell title="JARVIS" description="Your NORPIA AI assistant.">
@@ -152,7 +186,7 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
         />
 
         <section className="flex min-h-[60vh] flex-1 flex-col rounded-lg border border-border bg-card/20">
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex-1 space-y-4 overflow-y-auto p-3 sm:p-4">
             {conversationsQuery.isError && (
               <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
                 {mapChatError(conversationsQuery.error)}
@@ -167,20 +201,42 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
             )}
 
             {conversationId && messagesQuery.isError && (
-              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-                {mapChatError(messagesQuery.error)}
-              </p>
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <p>{mapChatError(messagesQuery.error)}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => void messagesQuery.refetch()}
+                >
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Reload history
+                </Button>
+              </div>
             )}
 
             {!messagesQuery.isLoading && messages.length === 0 && (
-              <div className="flex h-full min-h-[40vh] flex-col items-center justify-center text-center">
+              <div className="flex h-full min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
                 <p className="text-sm font-semibold text-foreground">
                   {conversationId ? "Say hello to JARVIS" : "Start a new conversation"}
                 </p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Ask a question below. Your conversations are private to your account and saved
-                  automatically.
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Ask a question below. JARVIS remembers the context of this conversation, and
+                  everything is private to your account and saved automatically.
                 </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      disabled={isSending}
+                      onClick={() => void send(suggestion)}
+                      className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -202,6 +258,17 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
               />
             )}
             {isSending && !streamed && <ThinkingBubble />}
+
+            {failed && !isSending && (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <span className="flex-1">{failed.message}</span>
+                <Button size="sm" onClick={() => void send(failed.content, { retry: true })}>
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Retry
+                </Button>
+              </div>
+            )}
+
             <div ref={bottomRef} />
           </div>
 
@@ -218,10 +285,24 @@ export function ChatWorkspace({ conversationId }: { conversationId?: string | un
                 className="min-h-[56px] resize-none"
                 aria-label="Message JARVIS"
               />
-              <Button onClick={() => void handleSend()} disabled={isSending || !draft.trim()}>
+              <Button
+                onClick={() => void send(draft)}
+                disabled={isSending || !draft.trim() || overLimit}
+              >
                 {isSending ? "Sending…" : "Send"}
               </Button>
             </div>
+            <p
+              className={
+                overLimit
+                  ? "mt-1 text-[11px] text-destructive"
+                  : "mt-1 text-[11px] text-muted-foreground"
+              }
+            >
+              {overLimit
+                ? `Too long — ${draft.length} / ${MAX_MESSAGE_LENGTH} characters.`
+                : `${draft.length} / ${MAX_MESSAGE_LENGTH} characters`}
+            </p>
           </div>
         </section>
       </div>

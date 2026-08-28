@@ -10,6 +10,8 @@ export interface StreamAssistantOptions {
   conversationId: string;
   message: string;
   onDelta: (text: string) => void;
+  /** Set when re-sending after a failure: the server reuses the stored message. */
+  retry?: boolean;
   signal?: AbortSignal;
 }
 
@@ -28,6 +30,7 @@ export async function streamAssistantReply(options: StreamAssistantOptions): Pro
     body: JSON.stringify({
       conversation_id: options.conversationId,
       message: options.message,
+      retry: options.retry ?? false,
     }),
   });
 

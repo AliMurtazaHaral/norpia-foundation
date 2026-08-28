@@ -135,20 +135,51 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   const encoder = new TextEncoder();
   const estimatedInputTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
 
+  // Start the upstream call here so a provider failure becomes a real HTTP
+  // error the UI can show, instead of a silent 200 with no assistant message.
+  const iterator = provider.streamChat({
+    messages,
+    model: config.model,
+    maxOutputTokens: config.maxOutputTokens,
+    temperature: config.temperature,
+  })[Symbol.asyncIterator]();
+
+  let firstChunk: IteratorResult<{ delta: string }>;
+  try {
+    firstChunk = await iterator.next();
+  } catch (error) {
+    const message =
+      error instanceof AiProviderError
+        ? error.message
+        : "JARVIS could not answer right now. Please try again.";
+    logAiUsage({
+      conversationId: conversation.id,
+      userId: user.id,
+      provider: provider.id,
+      model: config.model,
+      promptVersion: stats.promptVersion,
+      historyMessages: stats.historyMessages,
+      droppedMessages: stats.droppedMessages,
+      estimatedInputTokens,
+      estimatedOutputTokens: 0,
+      durationMs: Date.now() - startedAt,
+      status: "interrupted",
+    });
+    return errorResponse(message, error instanceof AiProviderError ? error.status : 502);
+  }
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let full = "";
       let status: "completed" | "interrupted" | "empty" = "completed";
       try {
-        for await (const chunk of provider.streamChat({
-          messages,
-          model: config.model,
-          maxOutputTokens: config.maxOutputTokens,
-          temperature: config.temperature,
-        })) {
-          full += chunk.delta;
-          controller.enqueue(encoder.encode(chunk.delta));
+        let result = firstChunk;
+        while (!result.done) {
+          full += result.value.delta;
+          controller.enqueue(encoder.encode(result.value.delta));
+          result = await iterator.next();
         }
+
 
         if (!full.trim()) {
           status = "empty";

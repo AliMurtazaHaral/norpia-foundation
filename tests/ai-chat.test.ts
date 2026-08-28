@@ -8,7 +8,7 @@ const route = readFileSync("src/routes/api/v1/ai/chat.ts", "utf8");
 
 describe("JARVIS system prompt", () => {
   it("forbids claiming external system access", () => {
-    expect(JARVIS_SYSTEM_PROMPT).toMatch(/NO access to email, calendars, files/);
+    expect(JARVIS_SYSTEM_PROMPT).toMatch(/NO integrations are connected/);
     expect(JARVIS_SYSTEM_PROMPT).toMatch(/Never claim to have performed a real-world action/);
   });
 });

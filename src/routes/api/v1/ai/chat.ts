@@ -82,14 +82,12 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   }
 
   // Ownership check — never trust a conversation id from the client.
-  const { data: conversation, error: conversationError } = await supabase
-    .from("conversations")
-    .select("id, user_id")
-    .eq("id", payload.conversation_id)
-    .maybeSingle();
-  if (conversationError) return errorResponse("Could not load that conversation.", 500);
-  if (!conversation || conversation.user_id !== user.id) {
-    return errorResponse("That conversation could not be found.", 404);
+  let conversation;
+  try {
+    conversation = await loadOwnedConversation(supabase, payload.conversation_id, user.id);
+  } catch (error) {
+    if (error instanceof ContextError) return errorResponse(error.message, error.status);
+    return errorResponse("Could not load that conversation.", 500);
   }
 
   // 1. Persist the user message first, so nothing is lost if the model fails.
@@ -117,25 +115,25 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
     if (userMessageError) return errorResponse("Your message could not be saved.", 500);
   }
 
-  // 2. Build a bounded context window (basic memory + cost control).
-  const { data: history, error: historyError } = await supabase
-    .from("messages")
-    .select("role, content, created_at")
-    .eq("conversation_id", conversation.id)
-    .order("created_at", { ascending: false })
-    .limit(config.maxHistoryMessages);
-  if (historyError) return errorResponse("Could not load the conversation history.", 500);
+  // 2. Prepare the context server-side (ownership + chronology + bounds).
+  let prepared;
+  try {
+    prepared = await prepareConversationContext({
+      supabase,
+      conversationId: conversation.id,
+      userId: user.id,
+      config,
+    });
+  } catch (error) {
+    if (error instanceof ContextError) return errorResponse(error.message, error.status);
+    return errorResponse("Could not load the conversation history.", 500);
+  }
 
-  const stored: StoredTurn[] = (history ?? [])
-    .slice()
-    .reverse()
-    .map((m) => ({ role: m.role as StoredTurn["role"], content: m.content as string }));
-
-  const { messages, stats } = buildChatContext({ history: stored, config });
-
+  const { messages, stats } = prepared;
   const provider = resolveChatProvider(config.provider);
   const encoder = new TextEncoder();
-  const estimatedInputTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  const estimatedInputTokens = stats.estimatedInputTokens;
+
 
   // Start the upstream call here so a provider failure becomes a real HTTP
   // error the UI can show, instead of a silent 200 with no assistant message.

@@ -11,11 +11,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { AiProviderError } from "@/backend/ai/chat-provider";
-import { buildChatContext, estimateTokens, type StoredTurn } from "@/backend/ai/context-manager";
-import { getAiModelConfig } from "@/backend/ai/jarvis-prompt";
+import { getContextConfig } from "@/backend/ai/context-config";
+import { ContextError, prepareConversationContext, loadOwnedConversation } from "@/backend/ai/conversation-context";
+import { estimateTokens } from "@/backend/ai/context-manager";
 import { resolveChatProvider } from "@/backend/ai/openai-provider";
 import { logAiUsage } from "@/backend/ai/usage-log";
 import { appConfig } from "@/lib/config";
+
 
 const bodySchema = z.object({
   conversation_id: z.string().uuid(),

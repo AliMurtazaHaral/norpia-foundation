@@ -90,9 +90,12 @@ describe("chat route reliability", () => {
     expect(route).toContain("DUPLICATE_WINDOW_MS");
   });
 
-  it("uses the shared context manager, not an inline window", () => {
-    expect(route).toContain("buildChatContext");
+  it("uses the shared context layer, not an inline window", () => {
+    expect(route).toContain("prepareConversationContext");
+    const layer = readFileSync("src/backend/ai/conversation-context.ts", "utf8");
+    expect(layer).toContain("buildChatContext");
   });
+
 
   it("logs usage without message content", () => {
     const log = readFileSync("src/backend/ai/usage-log.ts", "utf8");

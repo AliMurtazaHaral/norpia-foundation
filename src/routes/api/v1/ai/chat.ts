@@ -41,7 +41,7 @@ function errorResponse(message: string, status: number) {
 }
 
 async function handlePost({ request }: { request: Request }): Promise<Response> {
-  const config = getAiModelConfig();
+  const config = getContextConfig();
   const startedAt = Date.now();
 
   const authHeader = request.headers.get("Authorization") ?? "";

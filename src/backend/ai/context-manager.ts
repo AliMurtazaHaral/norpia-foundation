@@ -44,17 +44,28 @@ export interface BuiltContext {
 
 /**
  * Prioritises recent context: keeps the newest messages first and drops the
- * oldest ones once either the message limit or the character budget is hit.
+ * oldest ones once the message limit, the character budget, or (when supplied)
+ * the estimated input-token budget is hit.
  */
 export function buildChatContext(input: {
   history: StoredTurn[];
-  config: AiModelConfig;
+  config: AiModelConfig & { maxInputTokens?: number };
   memoryBlocks?: string[];
 }): BuiltContext {
   const { history, config, memoryBlocks = [] } = input;
 
   const ordered = history.filter((m) => m.content?.trim());
   const windowed = ordered.slice(-config.maxHistoryMessages);
+
+  // Fixed cost of the system instructions + any memory blocks.
+  const systemCharacters =
+    getSystemPrompt(config.promptVersion).length +
+    memoryBlocks.reduce((sum, block) => sum + block.length, 0);
+  const tokenBudgetCharacters =
+    typeof config.maxInputTokens === "number" && config.maxInputTokens > 0
+      ? Math.max(0, config.maxInputTokens * 4 - systemCharacters)
+      : Number.POSITIVE_INFINITY;
+  const budget = Math.min(config.maxContextCharacters, tokenBudgetCharacters);
 
   // Character budget, applied newest-first so the latest turns always survive.
   const kept: StoredTurn[] = [];
@@ -63,10 +74,11 @@ export function buildChatContext(input: {
     const turn = windowed[i]!;
     const cost = turn.content.length;
     // Always keep the most recent message, even if it alone exceeds the budget.
-    if (kept.length > 0 && characters + cost > config.maxContextCharacters) break;
+    if (kept.length > 0 && characters + cost > budget) break;
     characters += cost;
     kept.unshift(turn);
   }
+
 
   const messages: ChatTurn[] = [
     { role: "system", content: getSystemPrompt(config.promptVersion) },

@@ -162,3 +162,50 @@ multi-agent orchestration, billing.
 
 Action required: run `infrastructure/db/migrations/0005_chat_performance.sql`
 in the Supabase SQL editor.
+
+## Context preparation layer (Month 2 — Week 1)
+
+All context assembly is server-side. The frontend only sends
+`{ conversation_id, message }`; it never builds prompts or history.
+
+```
+POST /api/v1/ai/chat
+  → authenticate (Supabase bearer token, RLS-scoped client)
+  → loadOwnedConversation()      src/backend/ai/conversation-context.ts
+  → persist user message (dedup within DUPLICATE_WINDOW_MS)
+  → prepareConversationContext() → chronological history + bounded window
+  → provider.streamChat()        src/backend/ai/openai-provider.ts
+  → persist assistant message + content-free usage log
+```
+
+### Modules
+
+| File | Responsibility |
+| --- | --- |
+| `src/backend/ai/context-config.ts` | Centralized context configuration + per-model context limits |
+| `src/backend/ai/conversation-context.ts` | Ownership check, chronological history, context preparation |
+| `src/backend/ai/context-manager.ts` | Pure windowing: message limit, character budget, token budget |
+| `src/backend/ai/jarvis-prompt.ts` | Versioned system prompt + model configuration |
+
+### Configuration
+
+| Env var | Meaning |
+| --- | --- |
+| `MAX_CONTEXT_MESSAGES` | Number of recent messages replayed |
+| `MAX_CONTEXT_CHARACTERS` | Character ceiling for history |
+| `MAX_INPUT_TOKENS` | Estimated input-token ceiling (defaults to the model's limit) |
+| `MAX_OUTPUT_TOKENS` | Cap on the model's answer |
+| `MAX_MESSAGE_LENGTH` | Longest accepted single user message |
+| `AI_MODEL`, `AI_PROMPT_VERSION`, `AI_TEMPERATURE` | Model + prompt selection |
+
+Future summarisation, long-term memory and retrieval plug into
+`prepareConversationContext({ memoryBlocks })`; they are declared as disabled
+flags in `ContextConfig.future` and are **not** implemented yet.
+
+### Security
+
+- The conversation is loaded through the caller's RLS-scoped client and its
+  `user_id` is compared to the authenticated user; a foreign id returns 404,
+  so ids cannot be used to probe another user's data.
+- The OpenAI key is read only inside the server handler and never returned.
+- No database change was required for this work.

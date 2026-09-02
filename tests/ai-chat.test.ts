@@ -35,7 +35,10 @@ describe("ai chat route security", () => {
   });
 
   it("verifies conversation ownership", () => {
-    expect(route).toContain('conversation.user_id !== user.id');
+    // Ownership now lives in the shared context layer.
+    expect(route).toContain("loadOwnedConversation");
+    const layer = readFileSync("src/backend/ai/conversation-context.ts", "utf8");
+    expect(layer).toContain("conversation.user_id !== userId");
   });
 
   it("never uses the service role key", () => {
@@ -43,10 +46,12 @@ describe("ai chat route security", () => {
   });
 
   it("bounds the history window and persists both messages", () => {
-    expect(route).toContain("config.maxHistoryMessages");
+    const layer = readFileSync("src/backend/ai/conversation-context.ts", "utf8");
+    expect(layer).toContain("config.maxHistoryMessages");
     expect(route).toMatch(/role: "user"/);
     expect(route).toMatch(/role: "assistant"/);
   });
+
 });
 
 describe("client bridge", () => {

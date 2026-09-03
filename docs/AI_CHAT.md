@@ -37,7 +37,7 @@ Indexes (migration `0005_chat_performance.sql`):
 - `idx_messages_conversation_created (conversation_id, created_at)` — transcript + context window
 - `idx_messages_user` dropped: redundant, only cost insert throughput.
 
-Migrations to run in order: `0004_chat.sql`, then `0005_chat_performance.sql`.
+Migrations to run in order: `0004_chat.sql`, `0005_chat_performance.sql`, then `0006_conversation_summaries.sql`.
 
 ## 3. Authentication flow
 
@@ -63,10 +63,44 @@ Clear separation of concerns in the request sent upstream:
 
 ```
 [system]  versioned JARVIS prompt
-[system]  memory blocks   (extension point — empty today)
+[system]  conversation summary   (older messages, when one exists)
+[system]  memory blocks          (extension point for Month 2 Week 2+)
 [history] bounded recent turns, oldest → newest
 [user]    the current message (last history turn)
 ```
+
+### 4.1 Conversation summarisation (Month 2 Week 1)
+
+Long conversations are split into four conceptual layers: **summary of older
+messages**, **recent messages**, **current user message**, on top of the system
+instructions. Implementation:
+
+| Piece | File |
+| --- | --- |
+| Summary prompt, trigger, generation, storage | `src/backend/ai/conversation-summary.ts` |
+| Layering into the final context | `src/backend/ai/conversation-context.ts` |
+| Configuration | `src/backend/ai/context-config.ts` |
+| Table + RLS | `infrastructure/db/migrations/0006_conversation_summaries.sql` |
+
+- One rolling summary per conversation (`public.conversation_summaries`,
+  unique on `conversation_id`), with `covered_through`, `covered_message_count`
+  and an incrementing `version`.
+- Recent history is loaded with `created_at > covered_through`, so summarised
+  messages are never replayed twice.
+- Trigger: after a reply, when `total messages − summarised messages >=
+  SUMMARY_TRIGGER_MESSAGES`. The newest `SUMMARY_KEEP_RECENT_MESSAGES` turns
+  always stay verbatim.
+- Failure handling: summarisation runs best-effort. A provider or write failure
+  logs `ai.chat.summary_failed` (ids truncated, no content) and the next turn
+  falls back to recent-message context. The conversation is never destroyed.
+- Security: summaries are user data. RLS scopes them by `auth.uid()` **and**
+  conversation ownership, and every read filters `user_id` explicitly, so one
+  user's summary can never enter another user's AI request.
+- This is deliberately *not* cross-conversation memory — that is Month 2 Week 2.
+
+Env knobs: `SUMMARY_ENABLED`, `SUMMARY_TRIGGER_MESSAGES`,
+`SUMMARY_KEEP_RECENT_MESSAGES`, `SUMMARY_MAX_SOURCE_CHARACTERS`,
+`SUMMARY_MAX_OUTPUT_TOKENS`, `SUMMARY_MODEL`.
 
 ## 5. System prompt
 

@@ -198,7 +198,20 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
               model: config.model,
               prompt_version: stats.promptVersion,
               context_messages: stats.historyMessages,
+              summary_version: stats.summaryVersion,
             },
+          });
+
+          // 4. Maintenance: refresh the rolling summary when the conversation
+          //    has grown past the trigger. Never blocks or breaks the reply —
+          //    on failure the next turn simply uses recent messages only.
+          await maybeSummarize({
+            supabase,
+            provider,
+            config,
+            conversationId: conversation.id,
+            userId: user.id,
+            previous: prepared.summary,
           });
         }
       } catch (error) {

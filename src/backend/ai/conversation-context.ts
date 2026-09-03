@@ -18,6 +18,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ChatTurn } from "@/backend/ai/chat-provider";
 import { getContextConfig, type ContextConfig } from "@/backend/ai/context-config";
 import { buildChatContext, estimateTokens, type StoredTurn } from "@/backend/ai/context-manager";
+import {
+  loadConversationSummary,
+  summaryContextBlocks,
+  type ConversationSummary,
+} from "@/backend/ai/conversation-summary";
 
 export class ContextError extends Error {
   constructor(

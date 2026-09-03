@@ -41,12 +41,15 @@ export interface PreparedContext {
   conversation: ConversationRef;
   messages: ChatTurn[];
   config: ContextConfig;
+  summary: ConversationSummary | null;
   stats: {
     historyMessages: number;
     droppedMessages: number;
     contextCharacters: number;
     estimatedInputTokens: number;
     promptVersion: string;
+    summaryVersion: number | null;
+    summarizedMessages: number;
   };
 }
 

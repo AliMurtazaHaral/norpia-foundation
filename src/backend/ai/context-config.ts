@@ -37,12 +37,30 @@ function positiveNumber(names: string[], fallback: number): number {
   return fallback;
 }
 
+export interface SummaryConfig {
+  /** SUMMARY_ENABLED=false turns summarisation off entirely. */
+  enabled: boolean;
+  /** Unsummarised message count that triggers a (re)summarisation. */
+  triggerMessages: number;
+  /** Newest messages that always stay verbatim, never folded into the summary. */
+  keepRecentMessages: number;
+  /** Cost guard on the transcript handed to the summariser. */
+  maxSourceCharacters: number;
+  /** Cost guard on the summary itself. */
+  maxOutputTokens: number;
+  /** Optional cheaper model for summarisation; defaults to the chat model. */
+  model?: string;
+}
+
 export interface ContextConfig extends AiModelConfig {
   /** Hard ceiling on estimated input tokens for one request. */
   maxInputTokens: number;
+  /** Month 2 Week 1 — conversation-level summarisation. */
+  summary: SummaryConfig;
   /** Reserved for future phases — declared, not implemented yet. */
   future: {
-    summarisationEnabled: false;
+    /** Conversation summarisation ships in Week 1; see `summary` above. */
+    summarisationEnabled: boolean;
     longTermMemoryEnabled: false;
     retrievalEnabled: false;
   };

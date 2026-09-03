@@ -76,11 +76,22 @@ export function getContextConfig(): ContextConfig {
   const model = getAiModelConfig();
   const modelLimit = MODEL_CONTEXT_LIMITS[model.model] ?? DEFAULT_MODEL_CONTEXT_LIMIT;
 
+  const summaryEnabled = env("SUMMARY_ENABLED") !== "false";
+  const summaryModel = env("SUMMARY_MODEL");
+
   return {
     ...model,
     maxInputTokens: positiveNumber(["MAX_INPUT_TOKENS", "AI_MAX_INPUT_TOKENS"], modelLimit),
+    summary: {
+      enabled: summaryEnabled,
+      triggerMessages: positiveNumber(["SUMMARY_TRIGGER_MESSAGES"], 24),
+      keepRecentMessages: positiveNumber(["SUMMARY_KEEP_RECENT_MESSAGES"], 10),
+      maxSourceCharacters: positiveNumber(["SUMMARY_MAX_SOURCE_CHARACTERS"], 24000),
+      maxOutputTokens: positiveNumber(["SUMMARY_MAX_OUTPUT_TOKENS"], 400),
+      ...(summaryModel ? { model: summaryModel } : {}),
+    },
     future: {
-      summarisationEnabled: false,
+      summarisationEnabled: summaryEnabled,
       longTermMemoryEnabled: false,
       retrievalEnabled: false,
     },

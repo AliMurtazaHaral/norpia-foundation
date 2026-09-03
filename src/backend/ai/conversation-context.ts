@@ -18,6 +18,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ChatTurn } from "@/backend/ai/chat-provider";
 import { getContextConfig, type ContextConfig } from "@/backend/ai/context-config";
 import { buildChatContext, estimateTokens, type StoredTurn } from "@/backend/ai/context-manager";
+import {
+  loadConversationSummary,
+  summaryContextBlocks,
+  type ConversationSummary,
+} from "@/backend/ai/conversation-summary";
 
 export class ContextError extends Error {
   constructor(
@@ -41,12 +46,15 @@ export interface PreparedContext {
   conversation: ConversationRef;
   messages: ChatTurn[];
   config: ContextConfig;
+  summary: ConversationSummary | null;
   stats: {
     historyMessages: number;
     droppedMessages: number;
     contextCharacters: number;
     estimatedInputTokens: number;
     promptVersion: string;
+    summaryVersion: number | null;
+    summarizedMessages: number;
   };
 }
 
@@ -74,16 +82,26 @@ export async function loadOwnedConversation(
   return conversation;
 }
 
-/** Chronological history for a conversation, bounded by the message limit. */
+/**
+ * Chronological history for a conversation, bounded by the message limit.
+ * When `after` is supplied (the summary cutoff), only messages newer than that
+ * instant are replayed verbatim — the older ones live in the summary instead,
+ * so nothing is duplicated between the two blocks.
+ */
 export async function loadConversationHistory(
   supabase: SupabaseClient,
   conversationId: string,
   limit: number,
+  after?: string | null,
 ): Promise<StoredTurn[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("messages")
     .select("role, content, created_at")
-    .eq("conversation_id", conversationId)
+    .eq("conversation_id", conversationId);
+
+  if (after) query = query.gt("created_at", after);
+
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .limit(limit)
     .returns<Array<{ role: StoredTurn["role"]; content: string }>>();
@@ -96,8 +114,11 @@ export async function loadConversationHistory(
 }
 
 /**
- * Full preparation step. `memoryBlocks` is the seam where summarisation /
- * long-term memory / retrieval will plug in later — nothing produces them yet.
+ * Full preparation step. Layers, in order:
+ *   system instructions → conversation summary (older messages)
+ *   → recent messages (chronological) → current user message (last recent turn)
+ *
+ * `memoryBlocks` remains the seam for later phases (long-term memory, RAG).
  */
 export async function prepareConversationContext(input: {
   supabase: SupabaseClient;
@@ -105,6 +126,8 @@ export async function prepareConversationContext(input: {
   userId: string;
   config?: ContextConfig;
   memoryBlocks?: string[];
+  /** Set to false to skip the summary (used by failure fallbacks / tests). */
+  includeSummary?: boolean;
 }): Promise<PreparedContext> {
   const config = input.config ?? getContextConfig();
 
@@ -114,16 +137,26 @@ export async function prepareConversationContext(input: {
     input.userId,
   );
 
+  // The summary is loaded with the caller's RLS-scoped client and filtered by
+  // user_id, so another user's summary can never enter this context.
+  const summary =
+    input.includeSummary === false || !config.summary.enabled
+      ? null
+      : await loadConversationSummary(input.supabase, conversation.id, input.userId);
+
   const history = await loadConversationHistory(
     input.supabase,
     conversation.id,
     config.maxHistoryMessages,
+    summary?.coveredThrough ?? null,
   );
+
+  const memoryBlocks = [...summaryContextBlocks(summary), ...(input.memoryBlocks ?? [])];
 
   const { messages, stats } = buildChatContext({
     history,
     config,
-    ...(input.memoryBlocks ? { memoryBlocks: input.memoryBlocks } : {}),
+    ...(memoryBlocks.length ? { memoryBlocks } : {}),
   });
 
   const estimatedInputTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
@@ -132,6 +165,12 @@ export async function prepareConversationContext(input: {
     conversation,
     messages,
     config,
-    stats: { ...stats, estimatedInputTokens },
+    summary,
+    stats: {
+      ...stats,
+      estimatedInputTokens,
+      summaryVersion: summary?.version ?? null,
+      summarizedMessages: summary?.coveredMessageCount ?? 0,
+    },
   };
 }

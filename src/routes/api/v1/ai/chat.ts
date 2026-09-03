@@ -10,7 +10,14 @@ import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { AiProviderError } from "@/backend/ai/chat-provider";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { AiProviderError, type ChatProvider } from "@/backend/ai/chat-provider";
+import {
+  shouldSummarize,
+  summarizeConversation,
+  type ConversationSummary,
+} from "@/backend/ai/conversation-summary";
 import { getContextConfig } from "@/backend/ai/context-config";
 import { ContextError, prepareConversationContext, loadOwnedConversation } from "@/backend/ai/conversation-context";
 import { estimateTokens } from "@/backend/ai/context-manager";
@@ -38,6 +45,57 @@ function errorResponse(message: string, status: number) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Best-effort summary maintenance. Any failure is logged (technical detail
+ * stays server-side) and swallowed: the conversation keeps working with recent
+ * messages only, and the trigger simply fires again on the next turn.
+ */
+async function maybeSummarize(input: {
+  supabase: SupabaseClient;
+  provider: ChatProvider;
+  config: ReturnType<typeof getContextConfig>;
+  conversationId: string;
+  userId: string;
+  previous: ConversationSummary | null;
+}): Promise<void> {
+  try {
+    const { count, error } = await input.supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", input.conversationId);
+    if (error || typeof count !== "number") return;
+
+    if (
+      !shouldSummarize({
+        totalMessages: count,
+        summarizedMessages: input.previous?.coveredMessageCount ?? 0,
+        config: input.config,
+      })
+    ) {
+      return;
+    }
+
+    await summarizeConversation({
+      supabase: input.supabase,
+      provider: input.provider,
+      config: input.config,
+      conversationId: input.conversationId,
+      userId: input.userId,
+      previous: input.previous,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "ai.chat.summary_failed",
+        conversationId: input.conversationId.slice(0, 8),
+        userId: input.userId.slice(0, 8),
+        reason: error instanceof Error ? error.name : "unknown",
+      }),
+    );
+  }
 }
 
 async function handlePost({ request }: { request: Request }): Promise<Response> {
@@ -198,7 +256,20 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
               model: config.model,
               prompt_version: stats.promptVersion,
               context_messages: stats.historyMessages,
+              summary_version: stats.summaryVersion,
             },
+          });
+
+          // 4. Maintenance: refresh the rolling summary when the conversation
+          //    has grown past the trigger. Never blocks or breaks the reply —
+          //    on failure the next turn simply uses recent messages only.
+          await maybeSummarize({
+            supabase,
+            provider,
+            config,
+            conversationId: conversation.id,
+            userId: user.id,
+            previous: prepared.summary,
           });
         }
       } catch (error) {

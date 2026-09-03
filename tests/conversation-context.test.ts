@@ -51,11 +51,11 @@ describe("context configuration", () => {
     expect(getModelContextLimit("unknown-model")).toBeGreaterThan(0);
   });
 
-  it("keeps future memory features declared but disabled", () => {
+  it("keeps later-phase memory features disabled (summarisation shipped in M2W1)", () => {
     const config = getContextConfig();
     expect(config.future.retrievalEnabled).toBe(false);
-    expect(config.future.summarisationEnabled).toBe(false);
     expect(config.future.longTermMemoryEnabled).toBe(false);
+    expect(config.summary.enabled).toBe(true);
   });
 });
 

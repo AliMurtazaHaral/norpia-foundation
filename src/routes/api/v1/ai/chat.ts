@@ -10,7 +10,14 @@ import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { AiProviderError } from "@/backend/ai/chat-provider";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { AiProviderError, type ChatProvider } from "@/backend/ai/chat-provider";
+import {
+  shouldSummarize,
+  summarizeConversation,
+  type ConversationSummary,
+} from "@/backend/ai/conversation-summary";
 import { getContextConfig } from "@/backend/ai/context-config";
 import { ContextError, prepareConversationContext, loadOwnedConversation } from "@/backend/ai/conversation-context";
 import { estimateTokens } from "@/backend/ai/context-manager";

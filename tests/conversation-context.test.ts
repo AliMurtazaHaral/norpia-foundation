@@ -124,3 +124,69 @@ describe("chat route uses the shared context layer", () => {
     expect(route).not.toMatch(/SERVICE_ROLE/);
   });
 });
+
+describe("month 2 week 1 — QA hardening", () => {
+  it("reuses an already-verified conversation instead of re-querying", async () => {
+    let conversationLookups = 0;
+    const base = stubSupabase({
+      conversation: { id: "c1", user_id: "u1" },
+      messages: [{ role: "user", content: "hello" }],
+    }) as unknown as { from: (table: string) => unknown };
+    const counting = {
+      from(table: string) {
+        if (table === "conversations") conversationLookups += 1;
+        return base.from(table);
+      },
+    } as never;
+
+    const prepared = await prepareConversationContext({
+      supabase: counting,
+      conversationId: "c1",
+      userId: "u1",
+      includeSummary: false,
+      conversation: {
+        id: "c1",
+        user_id: "u1",
+        title: null,
+        metadata: {},
+        updated_at: null,
+      },
+    });
+
+    expect(conversationLookups).toBe(0);
+    expect(prepared.conversation.id).toBe("c1");
+  });
+
+  it("ignores a preloaded conversation that does not match the caller", async () => {
+    await expect(
+      prepareConversationContext({
+        supabase: stubSupabase({ conversation: null }),
+        conversationId: "c1",
+        userId: "u1",
+        includeSummary: false,
+        conversation: {
+          id: "c1",
+          user_id: "someone-else",
+          title: null,
+          metadata: {},
+          updated_at: null,
+        },
+      }),
+    ).rejects.toBeInstanceOf(ContextError);
+  });
+
+  it("skips the summary bookkeeping query when summarisation is disabled", () => {
+    expect(route).toContain("if (!input.config.summary.enabled) return;");
+  });
+
+  it("bounds the rows loaded for summarisation", () => {
+    const summary = readFileSync("src/backend/ai/conversation-summary.ts", "utf8");
+    expect(summary).toContain("SUMMARY_MAX_SOURCE_MESSAGES");
+    expect(summary).toMatch(/\.limit\(SUMMARY_MAX_SOURCE_MESSAGES\)/);
+  });
+
+  it("never exposes provider keys or raw errors to the client", () => {
+    expect(route).not.toMatch(/OPENAI_API_KEY/);
+    expect(route).not.toMatch(/error\.stack/);
+  });
+});

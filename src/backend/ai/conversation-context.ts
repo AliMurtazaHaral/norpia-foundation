@@ -128,14 +128,26 @@ export async function prepareConversationContext(input: {
   memoryBlocks?: string[];
   /** Set to false to skip the summary (used by failure fallbacks / tests). */
   includeSummary?: boolean;
+  /**
+   * Already-verified conversation from an earlier `loadOwnedConversation` in the
+   * same request. Avoids a second round trip; ownership is re-asserted below so
+   * a mismatched row can never slip through.
+   */
+  conversation?: ConversationRef;
 }): Promise<PreparedContext> {
   const config = input.config ?? getContextConfig();
 
-  const conversation = await loadOwnedConversation(
-    input.supabase,
-    input.conversationId,
-    input.userId,
-  );
+  const preloaded =
+    input.conversation &&
+    input.conversation.id === input.conversationId &&
+    input.conversation.user_id === input.userId
+      ? input.conversation
+      : null;
+
+  const conversation =
+    preloaded ??
+    (await loadOwnedConversation(input.supabase, input.conversationId, input.userId));
+
 
   // The summary is loaded with the caller's RLS-scoped client and filtered by
   // user_id, so another user's summary can never enter this context.

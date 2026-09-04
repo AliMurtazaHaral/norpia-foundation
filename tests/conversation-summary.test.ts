@@ -79,15 +79,14 @@ function stubSupabase(options: {
       });
       if (table === "messages") {
         Object.assign(builder, {
-          order: () => ({
-            limit: () => ({
-              returns: () =>
-                Promise.resolve({ data: [...rows].reverse(), error: null }),
-            }),
-            returns: () => Promise.resolve({ data: rows, error: null }),
-          }),
+          order: (_column: string, opts?: { ascending?: boolean }) => {
+            const data = opts?.ascending ? rows : [...rows].reverse();
+            const result = { returns: () => Promise.resolve({ data, error: null }) };
+            return { ...result, limit: () => result };
+          },
         });
       }
+
       return builder;
     },
   } as never;

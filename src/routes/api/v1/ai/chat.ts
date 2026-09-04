@@ -60,6 +60,7 @@ async function maybeSummarize(input: {
   userId: string;
   previous: ConversationSummary | null;
 }): Promise<void> {
+  if (!input.config.summary.enabled) return;
   try {
     const { count, error } = await input.supabase
       .from("messages")
@@ -181,6 +182,7 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
       conversationId: conversation.id,
       userId: user.id,
       config,
+      conversation,
     });
   } catch (error) {
     if (error instanceof ContextError) return errorResponse(error.message, error.status);

@@ -109,6 +109,9 @@ async function collect(provider: ChatProvider, request: Parameters<ChatProvider[
   return text.trim();
 }
 
+/** Cost guard: never load more than this many rows to summarise in one pass. */
+export const SUMMARY_MAX_SOURCE_MESSAGES = 500;
+
 export class SummarizationError extends Error {
   constructor(message: string) {
     super(message);
@@ -141,6 +144,8 @@ export async function summarizeConversation(input: {
     .select("role, content, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
+    // Hard bound so summarising a very long conversation stays a cheap query.
+    .limit(SUMMARY_MAX_SOURCE_MESSAGES)
     .returns<Array<{ role: StoredTurn["role"]; content: string; created_at: string }>>();
 
   if (error) throw new SummarizationError("Could not load the conversation for summarisation.");

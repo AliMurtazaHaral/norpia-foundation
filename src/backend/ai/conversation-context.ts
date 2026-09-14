@@ -23,6 +23,11 @@ import {
   summaryContextBlocks,
   type ConversationSummary,
 } from "@/backend/ai/conversation-summary";
+import {
+  markMemoriesUsed,
+  memoryContextBlocks,
+  retrieveRelevantMemories,
+} from "@/backend/memory/memory-service";
 
 export class ContextError extends Error {
   constructor(
@@ -55,6 +60,8 @@ export interface PreparedContext {
     promptVersion: string;
     summaryVersion: number | null;
     summarizedMessages: number;
+    /** Month 2 Week 2 — how many long-term memories were injected. */
+    memoriesUsed: number;
   };
 }
 
@@ -118,7 +125,10 @@ export async function loadConversationHistory(
  *   system instructions → conversation summary (older messages)
  *   → recent messages (chronological) → current user message (last recent turn)
  *
- * `memoryBlocks` remains the seam for later phases (long-term memory, RAG).
+ * Since Month 2 Week 2 the layering is:
+ *   system instructions → long-term user memory → conversation summary
+ *   → recent messages → current user message.
+ * `memoryBlocks` remains the seam for later phases (RAG).
  */
 export async function prepareConversationContext(input: {
   supabase: SupabaseClient;
@@ -128,6 +138,8 @@ export async function prepareConversationContext(input: {
   memoryBlocks?: string[];
   /** Set to false to skip the summary (used by failure fallbacks / tests). */
   includeSummary?: boolean;
+  /** Set to false to skip long-term memory retrieval. */
+  includeMemories?: boolean;
   /**
    * Already-verified conversation from an earlier `loadOwnedConversation` in the
    * same request. Avoids a second round trip; ownership is re-asserted below so
@@ -163,13 +175,42 @@ export async function prepareConversationContext(input: {
     summary?.coveredThrough ?? null,
   );
 
-  const memoryBlocks = [...summaryContextBlocks(summary), ...(input.memoryBlocks ?? [])];
+  // Month 2 Week 2 — long-term memory. Retrieved with the caller's RLS-scoped
+  // client and filtered by user_id, so only this user's memories can be used.
+  // Failure is non-fatal: the conversation continues without memories.
+  const lastUserTurn = [...history].reverse().find((turn) => turn.role === "user");
+  let memories: Awaited<ReturnType<typeof retrieveRelevantMemories>> = [];
+  if (config.memory.enabled && input.includeMemories !== false) {
+    try {
+      memories = await retrieveRelevantMemories(input.supabase, input.userId, {
+        maxMemories: config.memory.maxMemories,
+        maxCharacters: config.memory.maxCharacters,
+        ...(lastUserTurn ? { query: lastUserTurn.content } : {}),
+      });
+    } catch {
+      memories = [];
+    }
+  }
+
+  const memoryBlocks = [
+    ...memoryContextBlocks(memories),
+    ...summaryContextBlocks(summary),
+    ...(input.memoryBlocks ?? []),
+  ];
 
   const { messages, stats } = buildChatContext({
     history,
     config,
     ...(memoryBlocks.length ? { memoryBlocks } : {}),
   });
+
+  if (memories.length) {
+    await markMemoriesUsed(
+      input.supabase,
+      input.userId,
+      memories.map((memory) => memory.id),
+    );
+  }
 
   const estimatedInputTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
 
@@ -183,6 +224,7 @@ export async function prepareConversationContext(input: {
       estimatedInputTokens,
       summaryVersion: summary?.version ?? null,
       summarizedMessages: summary?.coveredMessageCount ?? 0,
+      memoriesUsed: memories.length,
     },
   };
 }

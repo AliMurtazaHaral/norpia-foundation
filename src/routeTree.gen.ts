@@ -29,6 +29,8 @@ import { Route as ApiV1IntegrationsRouteImport } from './routes/api/v1/integrati
 import { Route as ApiV1OpenapiDotjsonRouteImport } from './routes/api/v1/openapi[.]json'
 import { Route as ApiV1AiChatRouteImport } from './routes/api/v1/ai/chat'
 import { Route as ApiV1AiProvidersRouteImport } from './routes/api/v1/ai/providers'
+import { Route as ApiV1MemoriesIndexRouteImport } from './routes/api/v1/memories/index'
+import { Route as ApiV1MemoriesIdRouteImport } from './routes/api/v1/memories/$id'
 import { Route as ApiV1SystemArchitectureRouteImport } from './routes/api/v1/system/architecture'
 
 const IndexRoute = IndexRouteImport.update({
@@ -131,6 +133,16 @@ const ApiV1AiProvidersRoute = ApiV1AiProvidersRouteImport.update({
   path: '/api/v1/ai/providers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1MemoriesIndexRoute = ApiV1MemoriesIndexRouteImport.update({
+  id: '/api/v1/memories/',
+  path: '/api/v1/memories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1MemoriesIdRoute = ApiV1MemoriesIdRouteImport.update({
+  id: '/api/v1/memories/$id',
+  path: '/api/v1/memories/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiV1SystemArchitectureRoute = ApiV1SystemArchitectureRouteImport.update({
   id: '/api/v1/system/architecture',
   path: '/api/v1/system/architecture',
@@ -157,7 +169,9 @@ export interface FileRoutesByFullPath {
   '/chat/': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/memories/': typeof ApiV1MemoriesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -178,7 +192,9 @@ export interface FileRoutesByTo {
   '/chat': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/memories': typeof ApiV1MemoriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -202,7 +218,9 @@ export interface FileRoutesById {
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
   '/api/v1/ai/chat': typeof ApiV1AiChatRoute
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
+  '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/memories/': typeof ApiV1MemoriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -226,7 +244,9 @@ export interface FileRouteTypes {
     | '/chat/'
     | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
+    | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/memories/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -247,7 +267,9 @@ export interface FileRouteTypes {
     | '/chat'
     | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
+    | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/memories'
   id:
     | '__root__'
     | '/'
@@ -270,7 +292,9 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/'
     | '/api/v1/ai/chat'
     | '/api/v1/ai/providers'
+    | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/memories/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -287,7 +311,9 @@ export interface RootRouteChildren {
   ApiV1OpenapiDotjsonRoute: typeof ApiV1OpenapiDotjsonRoute
   ApiV1AiChatRoute: typeof ApiV1AiChatRoute
   ApiV1AiProvidersRoute: typeof ApiV1AiProvidersRoute
+  ApiV1MemoriesIdRoute: typeof ApiV1MemoriesIdRoute
   ApiV1SystemArchitectureRoute: typeof ApiV1SystemArchitectureRoute
+  ApiV1MemoriesIndexRoute: typeof ApiV1MemoriesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -432,6 +458,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1AiProvidersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/memories/': {
+      id: '/api/v1/memories/'
+      path: '/api/v1/memories'
+      fullPath: '/api/v1/memories/'
+      preLoaderRoute: typeof ApiV1MemoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/memories/$id': {
+      id: '/api/v1/memories/$id'
+      path: '/api/v1/memories/$id'
+      fullPath: '/api/v1/memories/$id'
+      preLoaderRoute: typeof ApiV1MemoriesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/v1/system/architecture': {
       id: '/api/v1/system/architecture'
       path: '/api/v1/system/architecture'
@@ -488,7 +528,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1OpenapiDotjsonRoute: ApiV1OpenapiDotjsonRoute,
   ApiV1AiChatRoute: ApiV1AiChatRoute,
   ApiV1AiProvidersRoute: ApiV1AiProvidersRoute,
+  ApiV1MemoriesIdRoute: ApiV1MemoriesIdRoute,
   ApiV1SystemArchitectureRoute: ApiV1SystemArchitectureRoute,
+  ApiV1MemoriesIndexRoute: ApiV1MemoriesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

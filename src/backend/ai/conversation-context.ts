@@ -60,6 +60,8 @@ export interface PreparedContext {
     promptVersion: string;
     summaryVersion: number | null;
     summarizedMessages: number;
+    /** Month 2 Week 2 — how many long-term memories were injected. */
+    memoriesUsed: number;
   };
 }
 

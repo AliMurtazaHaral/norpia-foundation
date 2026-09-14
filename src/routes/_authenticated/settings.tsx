@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { MemoryManager } from "@/components/memory/memory-manager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,11 +58,16 @@ function SettingsPage() {
   return (
     <AppShell title="Account settings" description="Profile, security and preferences.">
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-xl grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsTrigger value="memory">Memory</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="memory" className="mt-6">
+          <MemoryManager />
+        </TabsContent>
 
         <TabsContent value="profile" className="mt-6">
           <ProfileSection

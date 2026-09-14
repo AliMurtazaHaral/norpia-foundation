@@ -23,6 +23,11 @@ import {
   summaryContextBlocks,
   type ConversationSummary,
 } from "@/backend/ai/conversation-summary";
+import {
+  markMemoriesUsed,
+  memoryContextBlocks,
+  retrieveRelevantMemories,
+} from "@/backend/memory/memory-service";
 
 export class ContextError extends Error {
   constructor(

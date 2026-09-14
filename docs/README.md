@@ -10,6 +10,7 @@
 | [`SECURITY.md`](./SECURITY.md) | Trust boundaries, RLS policies, secret handling |
 | [`AI_CHAT.md`](./AI_CHAT.md) | JARVIS chat: provider, streaming, persistence |
 | [`CONTEXT_MANAGEMENT.md`](./CONTEXT_MANAGEMENT.md) | Month 2 W1: context retrieval, context builder, summarization, limits |
+| [`LONG_TERM_MEMORY.md`](./LONG_TERM_MEMORY.md) | Month 2 W2: user memory model, categories, service, retrieval, RLS |
 
 
 Live API reference: `/api/docs` (rendered from `/api/v1/openapi.json`).

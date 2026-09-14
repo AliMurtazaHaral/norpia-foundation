@@ -52,16 +52,28 @@ export interface SummaryConfig {
   model?: string;
 }
 
+export interface MemoryConfig {
+  /** MEMORY_ENABLED=false stops memories from entering the model context. */
+  enabled: boolean;
+  /** How many memories may be injected into one request. */
+  maxMemories: number;
+  /** Character budget for the whole memory block. */
+  maxCharacters: number;
+}
+
 export interface ContextConfig extends AiModelConfig {
   /** Hard ceiling on estimated input tokens for one request. */
   maxInputTokens: number;
   /** Month 2 Week 1 — conversation-level summarisation. */
   summary: SummaryConfig;
+  /** Month 2 Week 2 — cross-conversation long-term memory. */
+  memory: MemoryConfig;
   /** Reserved for future phases — declared, not implemented yet. */
   future: {
     /** Conversation summarisation ships in Week 1; see `summary` above. */
     summarisationEnabled: boolean;
-    longTermMemoryEnabled: false;
+    /** Long-term memory ships in Week 2; see `memory` above. */
+    longTermMemoryEnabled: boolean;
     retrievalEnabled: false;
   };
 }

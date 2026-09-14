@@ -9,7 +9,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { apiRoute, parseJsonBody, parseQuery } from "@/backend/core/http";
-import { memoryAuth } from "@/backend/memory/memory-http";
+import { memoryAuth, toApiError } from "@/backend/memory/memory-http";
 import { createMemory, listMemories } from "@/backend/memory/memory-service";
 import { createMemorySchema, listMemoriesSchema } from "@/backend/memory/memory-types";
 
@@ -19,13 +19,21 @@ export const Route = createFileRoute("/api/v1/memories/")({
       GET: apiRoute(async (ctx) => {
         const { supabase, userId } = await memoryAuth(ctx.request);
         const query = parseQuery(ctx, listMemoriesSchema);
-        return { items: await listMemories(supabase, userId, query) };
+        try {
+          return { items: await listMemories(supabase, userId, query) };
+        } catch (error) {
+          throw toApiError(error);
+        }
       }),
       POST: apiRoute(
         async (ctx) => {
           const { supabase, userId } = await memoryAuth(ctx.request);
           const input = await parseJsonBody(ctx, createMemorySchema);
-          return createMemory(supabase, userId, input);
+          try {
+            return await createMemory(supabase, userId, input);
+          } catch (error) {
+            throw toApiError(error);
+          }
         },
         { status: 201 },
       ),

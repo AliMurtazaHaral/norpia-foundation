@@ -125,7 +125,10 @@ export async function loadConversationHistory(
  *   system instructions → conversation summary (older messages)
  *   → recent messages (chronological) → current user message (last recent turn)
  *
- * `memoryBlocks` remains the seam for later phases (long-term memory, RAG).
+ * Since Month 2 Week 2 the layering is:
+ *   system instructions → long-term user memory → conversation summary
+ *   → recent messages → current user message.
+ * `memoryBlocks` remains the seam for later phases (RAG).
  */
 export async function prepareConversationContext(input: {
   supabase: SupabaseClient;

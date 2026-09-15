@@ -103,6 +103,55 @@ async function maybeSummarize(input: {
   }
 }
 
+/**
+ * Best-effort long-term memory extraction. Runs after the reply is complete,
+ * only once enough new turns exist, and never breaks the conversation: on
+ * failure the bookmark stays put and the next turn tries again.
+ */
+async function maybeExtractMemories(input: {
+  supabase: SupabaseClient;
+  provider: ChatProvider;
+  config: ReturnType<typeof getContextConfig>;
+  conversationId: string;
+  userId: string;
+  extractedThrough: string | null;
+}): Promise<void> {
+  const { config } = input;
+  if (!config.memory.enabled || !config.memory.extraction.enabled) return;
+
+  try {
+    let countQuery = input.supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", input.conversationId);
+    if (input.extractedThrough) countQuery = countQuery.gt("created_at", input.extractedThrough);
+
+    const { count, error } = await countQuery;
+    if (error || typeof count !== "number") return;
+    if (!shouldExtractMemories({ unanalysedMessages: count, config })) return;
+
+    await extractMemoriesFromConversation({
+      supabase: input.supabase,
+      provider: input.provider,
+      config,
+      conversationId: input.conversationId,
+      userId: input.userId,
+      extractedThrough: input.extractedThrough,
+    });
+  } catch (error) {
+    // Technical detail stays server-side; the user never sees memory failures.
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        event: "ai.chat.memory_extraction_failed",
+        conversationId: input.conversationId.slice(0, 8),
+        userId: input.userId.slice(0, 8),
+        reason: error instanceof Error ? error.name : "unknown",
+      }),
+    );
+  }
+}
+
 async function handlePost({ request }: { request: Request }): Promise<Response> {
   const config = getContextConfig();
   const startedAt = Date.now();

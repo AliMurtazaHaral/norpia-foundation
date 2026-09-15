@@ -45,6 +45,8 @@ export interface ConversationRef {
   title: string | null;
   metadata: Record<string, unknown>;
   updated_at: string | null;
+  /** Week 2 (Prompt 2) — memory-extraction bookmark; null before the first pass. */
+  memory_extracted_through?: string | null;
 }
 
 export interface PreparedContext {
@@ -77,7 +79,7 @@ export async function loadOwnedConversation(
 ): Promise<ConversationRef> {
   const { data, error } = await supabase
     .from("conversations")
-    .select("id, user_id, title, metadata, updated_at")
+    .select("id, user_id, title, metadata, updated_at, memory_extracted_through")
     .eq("id", conversationId)
     .maybeSingle();
 

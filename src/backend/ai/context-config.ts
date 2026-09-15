@@ -52,6 +52,31 @@ export interface SummaryConfig {
   model?: string;
 }
 
+export interface MemoryExtractionConfig {
+  /** MEMORY_EXTRACTION_ENABLED=false stops automatic extraction. */
+  enabled: boolean;
+  /** Unanalysed messages needed before a pass runs. Never every message. */
+  triggerMessages: number;
+  /** Hard bound on rows read for one pass. */
+  maxSourceMessages: number;
+  /** Cost guard on the transcript handed to the extractor. */
+  maxSourceCharacters: number;
+  /** Existing memories shown to the extractor for duplicate awareness. */
+  maxExistingMemories: number;
+  /** Cost guard on the extractor's own answer. */
+  maxOutputTokens: number;
+  /** Candidates below this confidence are discarded. */
+  minConfidence: number;
+  /** Candidates below this importance are discarded. */
+  minImportance: number;
+  /** Word-overlap score at which two memories count as the same fact. */
+  duplicateThreshold: number;
+  /** Maximum writes performed by one pass. */
+  maxPerRun: number;
+  /** Optional cheaper model; defaults to the summary/chat model. */
+  model?: string;
+}
+
 export interface MemoryConfig {
   /** MEMORY_ENABLED=false stops memories from entering the model context. */
   enabled: boolean;
@@ -59,6 +84,8 @@ export interface MemoryConfig {
   maxMemories: number;
   /** Character budget for the whole memory block. */
   maxCharacters: number;
+  /** Month 2 Week 2 (Prompt 2) — automatic extraction from conversations. */
+  extraction: MemoryExtractionConfig;
 }
 
 export interface ContextConfig extends AiModelConfig {

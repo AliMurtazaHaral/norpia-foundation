@@ -211,7 +211,11 @@ export function planMemoryChanges(input: {
     }
 
     plan.creates.push(candidate);
-    pool.push({ ...( {} as UserMemory ), id: `pending-${plan.creates.length}`, content: candidate.content, importance: candidate.importance } as UserMemory);
+    pool.push({
+      id: `pending-${plan.creates.length}`,
+      content: candidate.content,
+      importance: candidate.importance,
+    } as UserMemory);
   }
 
   return plan;

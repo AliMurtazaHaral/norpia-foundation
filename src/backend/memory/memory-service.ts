@@ -21,7 +21,7 @@ import {
 } from "@/backend/memory/memory-types";
 
 const COLUMNS =
-  "id, user_id, content, category, importance, source, source_conversation_id, is_active, metadata, last_used_at, created_at, updated_at";
+  "id, user_id, content, category, importance, confidence, source, source_conversation_id, is_active, metadata, last_used_at, created_at, updated_at";
 
 export class MemoryError extends Error {
   constructor(
@@ -56,6 +56,7 @@ export async function createMemory(
       content: input.content,
       category: input.category,
       importance: input.importance,
+      confidence: input.confidence,
       source: input.source,
       source_conversation_id: input.source_conversation_id ?? null,
       metadata: input.metadata ?? {},
@@ -155,7 +156,10 @@ function tokenize(text: string): string[] {
     .filter((word) => word.length > 2 && !STOP_WORDS.has(word));
 }
 
-/** Deterministic score: importance first, keyword overlap and recency as tie-breakers. */
+/**
+ * Deterministic score: importance first, keyword overlap and recency as
+ * tie-breakers, the whole thing weighted by how confident we are in the memory.
+ */
 export function scoreMemory(memory: UserMemory, queryTokens: string[], now = Date.now()): number {
   const importance = memory.importance * 2;
 

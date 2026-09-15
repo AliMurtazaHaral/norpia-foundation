@@ -118,6 +118,7 @@ export function getContextConfig(): ContextConfig {
   const summaryEnabled = env("SUMMARY_ENABLED") !== "false";
   const summaryModel = env("SUMMARY_MODEL");
   const memoryEnabled = env("MEMORY_ENABLED") !== "false";
+  const extractionModel = env("MEMORY_EXTRACTION_MODEL");
 
   return {
     ...model,
@@ -134,6 +135,19 @@ export function getContextConfig(): ContextConfig {
       enabled: memoryEnabled,
       maxMemories: positiveNumber(["MEMORY_MAX_ITEMS"], 12),
       maxCharacters: positiveNumber(["MEMORY_MAX_CHARACTERS"], 2000),
+      extraction: {
+        enabled: memoryEnabled && env("MEMORY_EXTRACTION_ENABLED") !== "false",
+        triggerMessages: positiveNumber(["MEMORY_EXTRACTION_TRIGGER_MESSAGES"], 6),
+        maxSourceMessages: positiveNumber(["MEMORY_EXTRACTION_MAX_SOURCE_MESSAGES"], 40),
+        maxSourceCharacters: positiveNumber(["MEMORY_EXTRACTION_MAX_SOURCE_CHARACTERS"], 12000),
+        maxExistingMemories: positiveNumber(["MEMORY_EXTRACTION_MAX_EXISTING"], 40),
+        maxOutputTokens: positiveNumber(["MEMORY_EXTRACTION_MAX_OUTPUT_TOKENS"], 500),
+        minConfidence: positiveNumber(["MEMORY_MIN_CONFIDENCE"], 0.6),
+        minImportance: positiveNumber(["MEMORY_MIN_IMPORTANCE"], 2),
+        duplicateThreshold: positiveNumber(["MEMORY_DUPLICATE_THRESHOLD"], 0.45),
+        maxPerRun: positiveNumber(["MEMORY_MAX_PER_RUN"], 5),
+        ...(extractionModel ? { model: extractionModel } : {}),
+      },
     },
     future: {
       summarisationEnabled: summaryEnabled,

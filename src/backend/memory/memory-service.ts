@@ -176,7 +176,9 @@ export function scoreMemory(memory: UserMemory, queryTokens: string[], now = Dat
   );
   const recency = Math.max(0, 2 - ageDays / 30);
 
-  return importance + overlap * 3 + recency;
+  // Low-confidence memories (usually auto-extracted) sink below stated ones.
+  const confidence = typeof memory.confidence === "number" ? memory.confidence : 1;
+  return (importance + overlap * 3 + recency) * Math.max(0.2, confidence);
 }
 
 /**

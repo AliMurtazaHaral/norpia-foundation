@@ -23,6 +23,10 @@ import { ContextError, prepareConversationContext, loadOwnedConversation } from 
 import { estimateTokens } from "@/backend/ai/context-manager";
 import { resolveChatProvider } from "@/backend/ai/openai-provider";
 import { logAiUsage } from "@/backend/ai/usage-log";
+import {
+  extractMemoriesFromConversation,
+  shouldExtractMemories,
+} from "@/backend/memory/memory-extraction";
 import { appConfig } from "@/lib/config";
 
 

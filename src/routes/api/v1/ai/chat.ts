@@ -326,6 +326,17 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             userId: user.id,
             previous: prepared.summary,
           });
+
+          // 5. Maintenance: learn durable facts about the user from the new
+          //    turns. Also best-effort and invisible to the reply.
+          await maybeExtractMemories({
+            supabase,
+            provider,
+            config,
+            conversationId: conversation.id,
+            userId: user.id,
+            extractedThrough: conversation.memory_extracted_through ?? null,
+          });
         }
       } catch (error) {
         status = "interrupted";

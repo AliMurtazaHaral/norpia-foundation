@@ -106,12 +106,50 @@ const STOP_WORDS = new Set([
   "prefers", "wants", "likes",
 ]);
 
+/**
+ * Small synonym table so obvious paraphrases collapse onto the same token
+ * ("short and direct responses" ≈ "concise answers"). Cheap stand-in for the
+ * embeddings that belong to a later roadmap stage.
+ */
+const SYNONYMS: Record<string, string> = {
+  responses: "answer",
+  response: "answer",
+  answers: "answer",
+  replies: "answer",
+  reply: "answer",
+  messages: "answer",
+  short: "concise",
+  brief: "concise",
+  succinct: "concise",
+  terse: "concise",
+  direct: "concise",
+  company: "company",
+  business: "company",
+  firm: "company",
+  employer: "company",
+  building: "project",
+  project: "project",
+  projects: "project",
+  working: "project",
+  goal: "goal",
+  goals: "goal",
+  objective: "goal",
+};
+
+function normalize(word: string): string {
+  const mapped = SYNONYMS[word];
+  if (mapped) return mapped;
+  // Very light stemming so plurals do not look like different facts.
+  return word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word;
+}
+
 function tokens(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
       .split(/[^\p{L}\p{N}]+/u)
-      .filter((word) => word.length > 2 && !STOP_WORDS.has(word)),
+      .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
+      .map(normalize),
   );
 }
 

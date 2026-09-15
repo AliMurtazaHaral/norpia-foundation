@@ -44,6 +44,8 @@ export interface UserMemory {
   content: string;
   category: MemoryCategory;
   importance: number;
+  /** 0-1 — how certain we are the user actually stated this (0008). */
+  confidence: number;
   source: MemorySource;
   source_conversation_id: string | null;
   is_active: boolean;
@@ -59,6 +61,7 @@ export const createMemorySchema = z.object({
   content: z.string().trim().min(1).max(MEMORY_MAX_CONTENT_LENGTH),
   category: z.enum(MEMORY_CATEGORIES).default("other"),
   importance: z.number().int().min(1).max(5).default(3),
+  confidence: z.number().min(0).max(1).default(1),
   source: z.enum(MEMORY_SOURCES).default("user"),
   source_conversation_id: z.string().uuid().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
@@ -69,6 +72,7 @@ export const updateMemorySchema = z
     content: z.string().trim().min(1).max(MEMORY_MAX_CONTENT_LENGTH).optional(),
     category: z.enum(MEMORY_CATEGORIES).optional(),
     importance: z.number().int().min(1).max(5).optional(),
+    confidence: z.number().min(0).max(1).optional(),
     is_active: z.boolean().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })

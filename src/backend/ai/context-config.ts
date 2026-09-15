@@ -52,6 +52,31 @@ export interface SummaryConfig {
   model?: string;
 }
 
+export interface MemoryExtractionConfig {
+  /** MEMORY_EXTRACTION_ENABLED=false stops automatic extraction. */
+  enabled: boolean;
+  /** Unanalysed messages needed before a pass runs. Never every message. */
+  triggerMessages: number;
+  /** Hard bound on rows read for one pass. */
+  maxSourceMessages: number;
+  /** Cost guard on the transcript handed to the extractor. */
+  maxSourceCharacters: number;
+  /** Existing memories shown to the extractor for duplicate awareness. */
+  maxExistingMemories: number;
+  /** Cost guard on the extractor's own answer. */
+  maxOutputTokens: number;
+  /** Candidates below this confidence are discarded. */
+  minConfidence: number;
+  /** Candidates below this importance are discarded. */
+  minImportance: number;
+  /** Word-overlap score at which two memories count as the same fact. */
+  duplicateThreshold: number;
+  /** Maximum writes performed by one pass. */
+  maxPerRun: number;
+  /** Optional cheaper model; defaults to the summary/chat model. */
+  model?: string;
+}
+
 export interface MemoryConfig {
   /** MEMORY_ENABLED=false stops memories from entering the model context. */
   enabled: boolean;
@@ -59,6 +84,8 @@ export interface MemoryConfig {
   maxMemories: number;
   /** Character budget for the whole memory block. */
   maxCharacters: number;
+  /** Month 2 Week 2 (Prompt 2) — automatic extraction from conversations. */
+  extraction: MemoryExtractionConfig;
 }
 
 export interface ContextConfig extends AiModelConfig {
@@ -91,6 +118,7 @@ export function getContextConfig(): ContextConfig {
   const summaryEnabled = env("SUMMARY_ENABLED") !== "false";
   const summaryModel = env("SUMMARY_MODEL");
   const memoryEnabled = env("MEMORY_ENABLED") !== "false";
+  const extractionModel = env("MEMORY_EXTRACTION_MODEL");
 
   return {
     ...model,
@@ -107,6 +135,19 @@ export function getContextConfig(): ContextConfig {
       enabled: memoryEnabled,
       maxMemories: positiveNumber(["MEMORY_MAX_ITEMS"], 12),
       maxCharacters: positiveNumber(["MEMORY_MAX_CHARACTERS"], 2000),
+      extraction: {
+        enabled: memoryEnabled && env("MEMORY_EXTRACTION_ENABLED") !== "false",
+        triggerMessages: positiveNumber(["MEMORY_EXTRACTION_TRIGGER_MESSAGES"], 6),
+        maxSourceMessages: positiveNumber(["MEMORY_EXTRACTION_MAX_SOURCE_MESSAGES"], 40),
+        maxSourceCharacters: positiveNumber(["MEMORY_EXTRACTION_MAX_SOURCE_CHARACTERS"], 12000),
+        maxExistingMemories: positiveNumber(["MEMORY_EXTRACTION_MAX_EXISTING"], 40),
+        maxOutputTokens: positiveNumber(["MEMORY_EXTRACTION_MAX_OUTPUT_TOKENS"], 500),
+        minConfidence: positiveNumber(["MEMORY_MIN_CONFIDENCE"], 0.6),
+        minImportance: positiveNumber(["MEMORY_MIN_IMPORTANCE"], 2),
+        duplicateThreshold: positiveNumber(["MEMORY_DUPLICATE_THRESHOLD"], 0.45),
+        maxPerRun: positiveNumber(["MEMORY_MAX_PER_RUN"], 5),
+        ...(extractionModel ? { model: extractionModel } : {}),
+      },
     },
     future: {
       summarisationEnabled: summaryEnabled,

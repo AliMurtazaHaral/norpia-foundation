@@ -76,6 +76,36 @@ system instructions
 
 Retrieval failure is non-fatal: the conversation continues without memories.
 
+**Priority.** The memory block is explicitly labelled as background, not truth:
+when the current conversation contradicts, updates or supersedes a note, the
+conversation wins. Combined with `replaces`-based rewriting during extraction,
+an outdated memory cannot keep steering JARVIS.
+
+## Error handling
+
+| Situation | Behaviour |
+| --- | --- |
+| Invalid memory id | `422` validation error from the Zod uuid check |
+| Foreign or missing id | `404` "could not be found" — identical for both, so ids cannot be probed |
+| Missing/invalid token | `401`, no database access attempted |
+| Duplicate candidate | silently skipped or merged into the existing memory |
+| Extraction failure | logged server-side (ids truncated), bookmark untouched, reply unaffected |
+| Retrieval failure | context is built without memories |
+| Database failure | generic user-facing message; no SQL, driver or key detail leaves the server |
+| OpenAI failure | chat returns the provider's user-facing status; memory maintenance is skipped |
+
+## Performance and cost
+
+- Extraction never runs per message: it waits for
+  `MEMORY_EXTRACTION_TRIGGER_MESSAGES` unanalysed turns and reads only the turns
+  after the bookmark, so text is never re-analysed.
+- Retrieval issues one bounded query per reply and the relevance gate keeps
+  unrelated memories out of the prompt, which directly reduces input tokens.
+- Migration `0009` adds a partial index on active memories so deactivated rows
+  are never scanned.
+- Extraction and summarisation can run on a cheaper model
+  (`MEMORY_EXTRACTION_MODEL`, `SUMMARY_MODEL`) than the chat model.
+
 ## Security
 
 - Every policy on `user_memories` is anchored on `auth.uid() = user_id`.

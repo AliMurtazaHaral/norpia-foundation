@@ -149,6 +149,8 @@ Duplicate and update handling:
 | `MEMORY_ENABLED` | `true` | set `false` to stop injecting memories |
 | `MEMORY_MAX_ITEMS` | `12` | memories per request |
 | `MEMORY_MAX_CHARACTERS` | `2000` | character budget for the memory block |
+| `MEMORY_MIN_RELEVANCE_SCORE` | `6` | relevance gate when the message has keywords |
+| `MEMORY_ALWAYS_INCLUDE_IMPORTANCE` | `4` | importance that bypasses the gate |
 | `MEMORY_EXTRACTION_ENABLED` | `true` | set `false` to stop automatic extraction |
 | `MEMORY_EXTRACTION_TRIGGER_MESSAGES` | `6` | unanalysed messages before a pass |
 | `MEMORY_EXTRACTION_MAX_SOURCE_MESSAGES` | `40` | rows read per pass |

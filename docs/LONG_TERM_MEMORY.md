@@ -52,9 +52,17 @@ Deterministic and cheap — no embeddings, no vector search (those belong to the
 later RAG phase):
 
 1. Load active memories of the authenticated user (bounded candidate pool).
-2. Score: `importance × 2 + keyword overlap × 3 + recency bonus`.
-3. Keep the top `MEMORY_MAX_ITEMS` within `MEMORY_MAX_CHARACTERS`.
-4. Render one labelled system block.
+2. Score: `(importance × 2 + keyword overlap × 3 + recency bonus) × confidence`.
+3. Relevance gate (Week 2 audit): when the current message supplies keywords, a
+   memory scoring below `MEMORY_MIN_RELEVANCE_SCORE` is left out. Memories at or
+   above `MEMORY_ALWAYS_INCLUDE_IMPORTANCE` (standing rules such as "always
+   answer in British English") bypass the gate.
+4. Keep the top `MEMORY_MAX_ITEMS` within `MEMORY_MAX_CHARACTERS`.
+5. Render one labelled system block.
+
+`markMemoriesUsed` only writes `last_used_at`; migration `0009` makes the
+`updated_at` trigger ignore that write, so usage bookkeeping no longer inflates
+the recency score of whatever was retrieved last.
 
 ## Context order
 

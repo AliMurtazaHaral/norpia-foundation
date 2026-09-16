@@ -187,6 +187,8 @@ export async function prepareConversationContext(input: {
       memories = await retrieveRelevantMemories(input.supabase, input.userId, {
         maxMemories: config.memory.maxMemories,
         maxCharacters: config.memory.maxCharacters,
+        minRelevanceScore: config.memory.minRelevanceScore,
+        alwaysIncludeImportance: config.memory.alwaysIncludeImportance,
         ...(lastUserTurn ? { query: lastUserTurn.content } : {}),
       });
     } catch {

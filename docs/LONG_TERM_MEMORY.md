@@ -13,7 +13,19 @@ describe **one** conversation (see `docs/CONTEXT_MANAGEMENT.md`).
 
 ## Data model — `user_memories`
 
-Migration: `infrastructure/db/migrations/0007_user_memories.sql` (run after `0006`).
+Migrations, in order: `0007_user_memories.sql` (table, RLS, indexes),
+`0008_memory_extraction.sql` (confidence + extraction bookmark),
+`0009_memory_hardening.sql` (usage bookkeeping no longer counts as an edit,
+partial index on active memories). All live in `infrastructure/db/migrations/`
+and are run in the Supabase SQL editor.
+
+## User controls
+
+Settings → Memory (`src/components/memory/memory-manager.tsx`) lists every
+memory (active and inactive) and supports adding, editing importance/category
+through the API, deactivating, reactivating and deleting. Deactivated memories
+are excluded from retrieval by the `is_active` filter, so they stop reaching
+JARVIS immediately; deleted ones are gone permanently.
 
 | Column | Purpose |
 | --- | --- |
@@ -52,9 +64,17 @@ Deterministic and cheap — no embeddings, no vector search (those belong to the
 later RAG phase):
 
 1. Load active memories of the authenticated user (bounded candidate pool).
-2. Score: `importance × 2 + keyword overlap × 3 + recency bonus`.
-3. Keep the top `MEMORY_MAX_ITEMS` within `MEMORY_MAX_CHARACTERS`.
-4. Render one labelled system block.
+2. Score: `(importance × 2 + keyword overlap × 3 + recency bonus) × confidence`.
+3. Relevance gate (Week 2 audit): when the current message supplies keywords, a
+   memory scoring below `MEMORY_MIN_RELEVANCE_SCORE` is left out. Memories at or
+   above `MEMORY_ALWAYS_INCLUDE_IMPORTANCE` (standing rules such as "always
+   answer in British English") bypass the gate.
+4. Keep the top `MEMORY_MAX_ITEMS` within `MEMORY_MAX_CHARACTERS`.
+5. Render one labelled system block.
+
+`markMemoriesUsed` only writes `last_used_at`; migration `0009` makes the
+`updated_at` trigger ignore that write, so usage bookkeeping no longer inflates
+the recency score of whatever was retrieved last.
 
 ## Context order
 
@@ -67,6 +87,36 @@ system instructions
 ```
 
 Retrieval failure is non-fatal: the conversation continues without memories.
+
+**Priority.** The memory block is explicitly labelled as background, not truth:
+when the current conversation contradicts, updates or supersedes a note, the
+conversation wins. Combined with `replaces`-based rewriting during extraction,
+an outdated memory cannot keep steering JARVIS.
+
+## Error handling
+
+| Situation | Behaviour |
+| --- | --- |
+| Invalid memory id | `422` validation error from the Zod uuid check |
+| Foreign or missing id | `404` "could not be found" — identical for both, so ids cannot be probed |
+| Missing/invalid token | `401`, no database access attempted |
+| Duplicate candidate | silently skipped or merged into the existing memory |
+| Extraction failure | logged server-side (ids truncated), bookmark untouched, reply unaffected |
+| Retrieval failure | context is built without memories |
+| Database failure | generic user-facing message; no SQL, driver or key detail leaves the server |
+| OpenAI failure | chat returns the provider's user-facing status; memory maintenance is skipped |
+
+## Performance and cost
+
+- Extraction never runs per message: it waits for
+  `MEMORY_EXTRACTION_TRIGGER_MESSAGES` unanalysed turns and reads only the turns
+  after the bookmark, so text is never re-analysed.
+- Retrieval issues one bounded query per reply and the relevance gate keeps
+  unrelated memories out of the prompt, which directly reduces input tokens.
+- Migration `0009` adds a partial index on active memories so deactivated rows
+  are never scanned.
+- Extraction and summarisation can run on a cheaper model
+  (`MEMORY_EXTRACTION_MODEL`, `SUMMARY_MODEL`) than the chat model.
 
 ## Security
 
@@ -111,6 +161,8 @@ Duplicate and update handling:
 | `MEMORY_ENABLED` | `true` | set `false` to stop injecting memories |
 | `MEMORY_MAX_ITEMS` | `12` | memories per request |
 | `MEMORY_MAX_CHARACTERS` | `2000` | character budget for the memory block |
+| `MEMORY_MIN_RELEVANCE_SCORE` | `6` | relevance gate when the message has keywords |
+| `MEMORY_ALWAYS_INCLUDE_IMPORTANCE` | `4` | importance that bypasses the gate |
 | `MEMORY_EXTRACTION_ENABLED` | `true` | set `false` to stop automatic extraction |
 | `MEMORY_EXTRACTION_TRIGGER_MESSAGES` | `6` | unanalysed messages before a pass |
 | `MEMORY_EXTRACTION_MAX_SOURCE_MESSAGES` | `40` | rows read per pass |

@@ -84,6 +84,13 @@ export interface MemoryConfig {
   maxMemories: number;
   /** Character budget for the whole memory block. */
   maxCharacters: number;
+  /**
+   * Relevance gate (Prompt 3 audit): when the current message gives us keywords,
+   * a memory below this score is left out instead of padding the context.
+   */
+  minRelevanceScore: number;
+  /** Memories at/above this importance are always relevant (standing rules). */
+  alwaysIncludeImportance: number;
   /** Month 2 Week 2 (Prompt 2) — automatic extraction from conversations. */
   extraction: MemoryExtractionConfig;
 }
@@ -135,6 +142,8 @@ export function getContextConfig(): ContextConfig {
       enabled: memoryEnabled,
       maxMemories: positiveNumber(["MEMORY_MAX_ITEMS"], 12),
       maxCharacters: positiveNumber(["MEMORY_MAX_CHARACTERS"], 2000),
+      minRelevanceScore: positiveNumber(["MEMORY_MIN_RELEVANCE_SCORE"], 6),
+      alwaysIncludeImportance: positiveNumber(["MEMORY_ALWAYS_INCLUDE_IMPORTANCE"], 4),
       extraction: {
         enabled: memoryEnabled && env("MEMORY_EXTRACTION_ENABLED") !== "false",
         triggerMessages: positiveNumber(["MEMORY_EXTRACTION_TRIGGER_MESSAGES"], 6),

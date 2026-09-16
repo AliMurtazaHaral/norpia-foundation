@@ -13,7 +13,19 @@ describe **one** conversation (see `docs/CONTEXT_MANAGEMENT.md`).
 
 ## Data model — `user_memories`
 
-Migration: `infrastructure/db/migrations/0007_user_memories.sql` (run after `0006`).
+Migrations, in order: `0007_user_memories.sql` (table, RLS, indexes),
+`0008_memory_extraction.sql` (confidence + extraction bookmark),
+`0009_memory_hardening.sql` (usage bookkeeping no longer counts as an edit,
+partial index on active memories). All live in `infrastructure/db/migrations/`
+and are run in the Supabase SQL editor.
+
+## User controls
+
+Settings → Memory (`src/components/memory/memory-manager.tsx`) lists every
+memory (active and inactive) and supports adding, editing importance/category
+through the API, deactivating, reactivating and deleting. Deactivated memories
+are excluded from retrieval by the `is_active` filter, so they stop reaching
+JARVIS immediately; deleted ones are gone permanently.
 
 | Column | Purpose |
 | --- | --- |

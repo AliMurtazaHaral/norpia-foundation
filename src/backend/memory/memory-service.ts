@@ -40,6 +40,14 @@ export interface MemoryRetrievalOptions {
   maxCharacters: number;
   /** Only consider memories in these categories when supplied. */
   categories?: MemoryCategory[];
+  /**
+   * Relevance gate. When the current message provides keywords, memories that
+   * score below this are skipped instead of inflating the context. Ignored when
+   * no query is available (nothing to be relevant to).
+   */
+  minRelevanceScore?: number;
+  /** Importance at which a memory counts as always relevant (standing rules). */
+  alwaysIncludeImportance?: number;
 }
 
 /* ------------------------------------------------------------------ CRUD */

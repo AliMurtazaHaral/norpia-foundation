@@ -244,19 +244,33 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   }
 
   const { messages, stats } = prepared;
-  const provider = resolveChatProvider(config.provider);
   const encoder = new TextEncoder();
   const estimatedInputTokens = stats.estimatedInputTokens;
 
+  // Month 2 Week 3: the route no longer knows which vendor answers. It asks the
+  // NORPIA AI layer, which resolves the configured provider adapter.
+  let handle: ReturnType<typeof streamChatViaAiLayer>;
+  let provider: ChatProvider;
+  try {
+    handle = streamChatViaAiLayer({
+      messages,
+      maxOutputTokens: config.maxOutputTokens,
+      temperature: config.temperature,
+      metadata: { feature: "jarvis.chat", promptVersion: stats.promptVersion },
+    });
+    // Same adapter, reused for the best-effort maintenance passes below.
+    provider = resolveProvider(handle.provider);
+  } catch (error) {
+    const message =
+      error instanceof AiProviderError
+        ? error.message
+        : "JARVIS could not answer right now. Please try again.";
+    return errorResponse(message, error instanceof AiProviderError ? error.status : 502);
+  }
 
   // Start the upstream call here so a provider failure becomes a real HTTP
   // error the UI can show, instead of a silent 200 with no assistant message.
-  const iterator = provider.streamChat({
-    messages,
-    model: config.model,
-    maxOutputTokens: config.maxOutputTokens,
-    temperature: config.temperature,
-  })[Symbol.asyncIterator]();
+  const iterator = handle.stream[Symbol.asyncIterator]();
 
   let firstChunk: IteratorResult<{ delta: string }>;
   try {

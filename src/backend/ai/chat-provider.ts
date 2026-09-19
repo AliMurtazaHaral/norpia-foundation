@@ -1,42 +1,29 @@
 /**
- * Provider-agnostic streaming chat contract.
+ * Streaming chat contract — compatibility surface.
  *
- * Anthropic / Gemini / local models can be added later by implementing this
- * interface and registering them in `resolveChatProvider` — no call-site changes.
+ * Since Month 2 Week 3 the canonical contracts live in
+ * `src/backend/ai/provider/provider-types.ts`. This module keeps the original
+ * names (`ChatProvider`, `ChatTurn`, `AiProviderError`) working for existing
+ * call sites and tests, and defines the minimal structural shape internal
+ * helpers (summarisation, memory extraction) depend on.
  */
 
-export type ChatTurnRole = "system" | "user" | "assistant";
+import type {
+  AiStreamChunk,
+  AiTurn,
+  AiTurnRole,
+  ResolvedAiChatRequest,
+} from "@/backend/ai/provider/provider-types";
 
-export interface ChatTurn {
-  role: ChatTurnRole;
-  content: string;
-}
+export { AiProviderError } from "@/backend/ai/provider/provider-types";
 
-export interface ChatStreamRequest {
-  messages: ChatTurn[];
-  model: string;
-  maxOutputTokens: number;
-  temperature: number;
-  signal?: AbortSignal;
-}
+export type ChatTurnRole = AiTurnRole;
+export type ChatTurn = AiTurn;
+export type ChatStreamRequest = ResolvedAiChatRequest;
+export type ChatStreamChunk = AiStreamChunk;
 
-export interface ChatStreamChunk {
-  delta: string;
-}
-
+/** Minimal streaming surface: every registered adapter satisfies it. */
 export interface ChatProvider {
   id: string;
-  /** Yields incremental text deltas until the model finishes. */
   streamChat(request: ChatStreamRequest): AsyncGenerator<ChatStreamChunk>;
-}
-
-/** Safe, user-facing failure raised by providers. Never contains credentials. */
-export class AiProviderError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "AiProviderError";
-  }
 }

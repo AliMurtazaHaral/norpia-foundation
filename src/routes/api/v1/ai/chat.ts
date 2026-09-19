@@ -13,6 +13,8 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { AiProviderError, type ChatProvider } from "@/backend/ai/chat-provider";
+import { streamChat as streamChatViaAiLayer } from "@/backend/ai/ai-service";
+import { resolveProvider } from "@/backend/ai/provider/provider-registry";
 import {
   shouldSummarize,
   summarizeConversation,
@@ -21,7 +23,6 @@ import {
 import { getContextConfig } from "@/backend/ai/context-config";
 import { ContextError, prepareConversationContext, loadOwnedConversation } from "@/backend/ai/conversation-context";
 import { estimateTokens } from "@/backend/ai/context-manager";
-import { resolveChatProvider } from "@/backend/ai/openai-provider";
 import { logAiUsage } from "@/backend/ai/usage-log";
 import {
   extractMemoriesFromConversation,

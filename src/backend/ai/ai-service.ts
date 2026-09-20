@@ -10,7 +10,9 @@
 
 import { getContextConfig } from "@/backend/ai/context-config";
 import { resolveProvider } from "@/backend/ai/provider/provider-registry";
-import { getActiveProviderId, getDefaultModel } from "@/backend/ai/provider/provider-config";
+import { getDefaultModel } from "@/backend/ai/provider/provider-config";
+import { selectProviderAndModel } from "@/backend/ai/provider/provider-selection";
+import { clampOutputTokens, estimateCostUsd } from "@/backend/ai/provider/model-catalog";
 import {
   AiProviderError,
   type AiChatRequest,

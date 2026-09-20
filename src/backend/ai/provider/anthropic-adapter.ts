@@ -160,7 +160,10 @@ export const anthropicAdapter: AiProviderAdapter = {
         inputTokens !== undefined && outputTokens !== undefined
           ? inputTokens + outputTokens
           : undefined;
-      const cost = estimateCostUsd(request.model, { inputTokens, outputTokens });
+      const cost = estimateCostUsd(request.model, {
+        ...(inputTokens !== undefined ? { inputTokens } : {}),
+        ...(outputTokens !== undefined ? { outputTokens } : {}),
+      });
       yield {
         delta: "",
         usage: {

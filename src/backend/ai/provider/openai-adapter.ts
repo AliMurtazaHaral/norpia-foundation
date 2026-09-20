@@ -64,7 +64,9 @@ export const openAiAdapter: AiProviderAdapter = {
           model: request.model,
           stream: true,
           temperature: request.temperature,
-          max_tokens: request.maxOutputTokens,
+          max_tokens: clampOutputTokens(request.model, request.maxOutputTokens),
+          // Ask for provider-reported token counts on the final chunk.
+          stream_options: { include_usage: true },
           messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });

@@ -29,14 +29,14 @@ const PROVIDER_SETTINGS: Record<string, ProviderSettings> = {
     label: "OpenAI",
     apiKeyEnv: "OPENAI_API_KEY",
     defaultModel: "gpt-4o-mini",
-    models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"],
+    models: listModelIds("openai"),
   },
   anthropic: {
     id: "anthropic",
     label: "Anthropic",
     apiKeyEnv: "ANTHROPIC_API_KEY",
     defaultModel: "claude-3-5-sonnet-latest",
-    models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
+    models: listModelIds("anthropic"),
   },
 };
 

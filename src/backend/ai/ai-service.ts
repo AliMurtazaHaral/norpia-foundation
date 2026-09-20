@@ -70,11 +70,31 @@ export function resolveChatCall(request: AiChatRequest): ResolvedCall {
   };
 }
 
+/** Rough token estimate used only when a provider reports nothing (≈4 chars/token). */
+function estimateTokens(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function fallbackUsage(model: string, promptText: string, output: string): AiUsage {
+  const inputTokens = estimateTokens(promptText);
+  const outputTokens = estimateTokens(output);
+  const cost = estimateCostUsd(model, { inputTokens, outputTokens });
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    estimated: true,
+    ...(cost !== undefined ? { estimatedCostUsd: cost } : {}),
+  };
+}
+
 export interface ChatStreamHandle {
   provider: AiProviderId;
   model: string;
   /** Incremental text deltas, provider-agnostic. */
   stream: AsyncGenerator<AiStreamChunk>;
+  /** Standardised usage once the stream has finished; estimated if unreported. */
+  getUsage(): AiUsage | undefined;
 }
 
 /**
@@ -83,7 +103,27 @@ export interface ChatStreamHandle {
  */
 export function streamChat(request: AiChatRequest): ChatStreamHandle {
   const { adapter, provider, resolved } = resolveChatCall(request);
-  return { provider, model: resolved.model, stream: adapter.streamChat(resolved) };
+  const promptText = resolved.messages.map((m) => m.content).join("\n");
+  let usage: AiUsage | undefined;
+
+  async function* wrapped(): AsyncGenerator<AiStreamChunk> {
+    let output = "";
+    for await (const chunk of adapter.streamChat(resolved)) {
+      if (chunk.usage) usage = chunk.usage;
+      if (chunk.delta) {
+        output += chunk.delta;
+        yield { delta: chunk.delta };
+      }
+    }
+    if (!usage) usage = fallbackUsage(resolved.model, promptText, output);
+  }
+
+  return {
+    provider,
+    model: resolved.model,
+    stream: wrapped(),
+    getUsage: () => usage,
+  };
 }
 
 /**
@@ -95,14 +135,20 @@ export async function generateText(request: AiChatRequest): Promise<AiChatRespon
   const { adapter, provider, resolved } = resolveChatCall(request);
 
   let content = "";
-  for await (const chunk of adapter.streamChat(resolved)) content += chunk.delta;
+  let usage: AiUsage | undefined;
+  for await (const chunk of adapter.streamChat(resolved)) {
+    if (chunk.usage) usage = chunk.usage;
+    content += chunk.delta;
+  }
   content = content.trim();
 
   return {
     content,
     provider,
     model: resolved.model,
-    usage: { estimated: true },
+    usage:
+      usage ??
+      fallbackUsage(resolved.model, resolved.messages.map((m) => m.content).join("\n"), content),
     metadata: {
       finishReason: content ? "completed" : "empty",
       durationMs: Date.now() - startedAt,

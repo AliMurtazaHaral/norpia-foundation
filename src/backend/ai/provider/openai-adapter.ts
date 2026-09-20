@@ -17,6 +17,7 @@ import {
   type ResolvedAiChatRequest,
 } from "@/backend/ai/provider/provider-types";
 import { getProviderSettings, hasCredential } from "@/backend/ai/provider/provider-config";
+import { clampOutputTokens, estimateCostUsd } from "@/backend/ai/provider/model-catalog";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 

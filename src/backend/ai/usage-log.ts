@@ -16,6 +16,12 @@ export interface AiUsageRecord {
   droppedMessages: number;
   estimatedInputTokens: number;
   estimatedOutputTokens: number;
+  /** Provider-reported total where available. */
+  totalTokens?: number;
+  /** Indicative list-price cost; omitted when pricing is unknown. */
+  estimatedCostUsd?: number;
+  /** True when the counts came from the provider rather than an estimate. */
+  usageReported?: boolean;
   durationMs: number;
   status: "completed" | "interrupted" | "empty";
 }

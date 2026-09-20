@@ -41,22 +41,27 @@ export interface ResolvedCall {
 /** Applies configuration defaults and resolves the adapter. Never throws raw errors. */
 export function resolveChatCall(request: AiChatRequest): ResolvedCall {
   const config = getContextConfig();
-  const providerId = request.provider ?? getActiveProviderId();
-  const adapter = resolveProvider(providerId);
+  const selection = selectProviderAndModel({
+    ...(request.provider ? { provider: request.provider } : {}),
+    ...(request.model ? { model: request.model } : {}),
+  });
+  const adapter = resolveProvider(selection.provider);
 
   const messages = composeMessages(request);
   if (!messages.some((turn) => turn.role === "user")) {
-    throw AiProviderError.of("invalid_request", { provider: providerId });
+    throw AiProviderError.of("invalid_request", { provider: selection.provider });
   }
+
+  const model = selection.model || getDefaultModel(adapter.id) || config.model;
 
   return {
     adapter,
     provider: adapter.id,
     resolved: {
       messages,
-      model: request.model ?? getDefaultModel(adapter.id) ?? config.model,
+      model,
       temperature: request.temperature ?? config.temperature,
-      maxOutputTokens: request.maxOutputTokens ?? config.maxOutputTokens,
+      maxOutputTokens: clampOutputTokens(model, request.maxOutputTokens ?? config.maxOutputTokens),
       ...(request.signal ? { signal: request.signal } : {}),
       ...(request.metadata ? { metadata: request.metadata } : {}),
     },

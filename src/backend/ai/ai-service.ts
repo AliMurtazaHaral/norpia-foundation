@@ -20,6 +20,7 @@ import {
   type AiProviderAdapter,
   type AiProviderId,
   type AiStreamChunk,
+  type AiUsage,
   type AiTurn,
   type ResolvedAiChatRequest,
 } from "@/backend/ai/provider/provider-types";

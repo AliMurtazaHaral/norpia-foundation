@@ -7,6 +7,7 @@
 
 import { anthropicAdapter } from "@/backend/ai/provider/anthropic-adapter";
 import { openAiAdapter } from "@/backend/ai/provider/openai-adapter";
+import { listModels } from "@/backend/ai/provider/model-catalog";
 import {
   getActiveProviderId,
   listProviderSettings,
@@ -56,6 +57,15 @@ export function listProviders(): AiProviderDescriptor[] {
       available,
       defaultModel: settings.defaultModel,
       models: settings.models,
+      // Catalogue metadata: capabilities, context window, cost. No credentials.
+      modelDetails: listModels(settings.id).map((model) => ({
+        id: model.id,
+        label: model.label,
+        capabilities: model.capabilities,
+        contextWindow: model.contextWindow,
+        maxOutputTokens: model.maxOutputTokens,
+        ...(model.cost ? { cost: model.cost } : {}),
+      })),
       status: settings.id === active ? "active" : available ? "configured" : "planned",
     };
   });

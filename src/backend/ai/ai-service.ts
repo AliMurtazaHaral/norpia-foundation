@@ -10,7 +10,9 @@
 
 import { getContextConfig } from "@/backend/ai/context-config";
 import { resolveProvider } from "@/backend/ai/provider/provider-registry";
-import { getActiveProviderId, getDefaultModel } from "@/backend/ai/provider/provider-config";
+import { getDefaultModel } from "@/backend/ai/provider/provider-config";
+import { selectProviderAndModel } from "@/backend/ai/provider/provider-selection";
+import { clampOutputTokens, estimateCostUsd } from "@/backend/ai/provider/model-catalog";
 import {
   AiProviderError,
   type AiChatRequest,
@@ -18,6 +20,7 @@ import {
   type AiProviderAdapter,
   type AiProviderId,
   type AiStreamChunk,
+  type AiUsage,
   type AiTurn,
   type ResolvedAiChatRequest,
 } from "@/backend/ai/provider/provider-types";
@@ -41,25 +44,48 @@ export interface ResolvedCall {
 /** Applies configuration defaults and resolves the adapter. Never throws raw errors. */
 export function resolveChatCall(request: AiChatRequest): ResolvedCall {
   const config = getContextConfig();
-  const providerId = request.provider ?? getActiveProviderId();
-  const adapter = resolveProvider(providerId);
+  const selection = selectProviderAndModel({
+    ...(request.provider ? { provider: request.provider } : {}),
+    ...(request.model ? { model: request.model } : {}),
+  });
+  const adapter = resolveProvider(selection.provider);
 
   const messages = composeMessages(request);
   if (!messages.some((turn) => turn.role === "user")) {
-    throw AiProviderError.of("invalid_request", { provider: providerId });
+    throw AiProviderError.of("invalid_request", { provider: selection.provider });
   }
+
+  const model = selection.model || getDefaultModel(adapter.id) || config.model;
 
   return {
     adapter,
     provider: adapter.id,
     resolved: {
       messages,
-      model: request.model ?? getDefaultModel(adapter.id) ?? config.model,
+      model,
       temperature: request.temperature ?? config.temperature,
-      maxOutputTokens: request.maxOutputTokens ?? config.maxOutputTokens,
+      maxOutputTokens: clampOutputTokens(model, request.maxOutputTokens ?? config.maxOutputTokens),
       ...(request.signal ? { signal: request.signal } : {}),
       ...(request.metadata ? { metadata: request.metadata } : {}),
     },
+  };
+}
+
+/** Rough token estimate used only when a provider reports nothing (≈4 chars/token). */
+function estimateTokens(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function fallbackUsage(model: string, promptText: string, output: string): AiUsage {
+  const inputTokens = estimateTokens(promptText);
+  const outputTokens = estimateTokens(output);
+  const cost = estimateCostUsd(model, { inputTokens, outputTokens });
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    estimated: true,
+    ...(cost !== undefined ? { estimatedCostUsd: cost } : {}),
   };
 }
 
@@ -68,6 +94,8 @@ export interface ChatStreamHandle {
   model: string;
   /** Incremental text deltas, provider-agnostic. */
   stream: AsyncGenerator<AiStreamChunk>;
+  /** Standardised usage once the stream has finished; estimated if unreported. */
+  getUsage(): AiUsage | undefined;
 }
 
 /**
@@ -76,7 +104,27 @@ export interface ChatStreamHandle {
  */
 export function streamChat(request: AiChatRequest): ChatStreamHandle {
   const { adapter, provider, resolved } = resolveChatCall(request);
-  return { provider, model: resolved.model, stream: adapter.streamChat(resolved) };
+  const promptText = resolved.messages.map((m) => m.content).join("\n");
+  let usage: AiUsage | undefined;
+
+  async function* wrapped(): AsyncGenerator<AiStreamChunk> {
+    let output = "";
+    for await (const chunk of adapter.streamChat(resolved)) {
+      if (chunk.usage) usage = chunk.usage;
+      if (chunk.delta) {
+        output += chunk.delta;
+        yield { delta: chunk.delta };
+      }
+    }
+    if (!usage) usage = fallbackUsage(resolved.model, promptText, output);
+  }
+
+  return {
+    provider,
+    model: resolved.model,
+    stream: wrapped(),
+    getUsage: () => usage,
+  };
 }
 
 /**
@@ -88,14 +136,20 @@ export async function generateText(request: AiChatRequest): Promise<AiChatRespon
   const { adapter, provider, resolved } = resolveChatCall(request);
 
   let content = "";
-  for await (const chunk of adapter.streamChat(resolved)) content += chunk.delta;
+  let usage: AiUsage | undefined;
+  for await (const chunk of adapter.streamChat(resolved)) {
+    if (chunk.usage) usage = chunk.usage;
+    content += chunk.delta;
+  }
   content = content.trim();
 
   return {
     content,
     provider,
     model: resolved.model,
-    usage: { estimated: true },
+    usage:
+      usage ??
+      fallbackUsage(resolved.model, resolved.messages.map((m) => m.content).join("\n"), content),
     metadata: {
       finishReason: content ? "completed" : "empty",
       durationMs: Date.now() - startedAt,

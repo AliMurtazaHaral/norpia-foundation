@@ -375,6 +375,8 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
           });
         }
       } finally {
+        // Provider-reported usage when the adapter supplied it; estimates otherwise.
+        const usage = handle.getUsage();
         logAiUsage({
           conversationId: conversation.id,
           userId: user.id,
@@ -383,8 +385,13 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
           promptVersion: stats.promptVersion,
           historyMessages: stats.historyMessages,
           droppedMessages: stats.droppedMessages,
-          estimatedInputTokens,
-          estimatedOutputTokens: estimateTokens(full),
+          estimatedInputTokens: usage?.inputTokens ?? estimatedInputTokens,
+          estimatedOutputTokens: usage?.outputTokens ?? estimateTokens(full),
+          ...(usage?.totalTokens !== undefined ? { totalTokens: usage.totalTokens } : {}),
+          ...(usage?.estimatedCostUsd !== undefined
+            ? { estimatedCostUsd: usage.estimatedCostUsd }
+            : {}),
+          usageReported: usage ? !usage.estimated : false,
           durationMs: Date.now() - startedAt,
           status,
         });

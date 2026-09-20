@@ -18,12 +18,49 @@ User → JARVIS UI
 
 | File | Responsibility |
 | --- | --- |
-| `provider/provider-types.ts` | Standard request, response, error, adapter contracts |
+| `provider/provider-types.ts` | Standard request, response, usage, error, adapter contracts |
 | `provider/provider-config.ts` | Active provider, default models, availability (env only) |
+| `provider/model-catalog.ts` | Every model: provider, capabilities, context window, limits, cost |
+| `provider/provider-selection.ts` | Which provider/model handles a request |
 | `provider/provider-registry.ts` | Register / resolve / list adapters |
 | `provider/openai-adapter.ts` | The only module that knows the OpenAI wire format |
-| `provider/anthropic-adapter.ts` | Registered placeholder; no API calls yet |
+| `provider/anthropic-adapter.ts` | The only module that knows the Anthropic wire format |
 | `ai-service.ts` | The NORPIA AI layer every caller uses |
+
+## Model catalogue
+
+`model-catalog.ts` is the single source of model facts. Each entry carries
+`provider`, `label`, `capabilities`, `contextWindow`, `maxOutputTokens`,
+optional `defaultTemperature` and list-price `cost`. Provider model lists and
+the `/api/v1/ai/providers` payload are derived from it, output budgets are
+clamped to each model's ceiling, and cost estimates come from it — no model
+facts are hardcoded anywhere else.
+
+Capabilities are descriptive only (`text`, `reasoning`, `long-context`,
+`structured-output`, `tools`, `vision`, `streaming`). Declaring `tools` does
+not execute tools; tool execution is a later roadmap item.
+
+## Provider selection
+
+`selectProviderAndModel()` is deliberately simple:
+
+1. an explicitly named model decides the provider that serves it;
+2. otherwise an explicitly named provider uses its default model;
+3. otherwise the configured active provider (`AI_PROVIDER`, default `openai`)
+   and its default model (`AI_MODEL` or the catalogue default).
+
+No autonomous routing, scoring or fallback chains. Switching NORPIA to Claude
+is `AI_PROVIDER=anthropic` plus `ANTHROPIC_API_KEY` — no application code
+changes.
+
+## Usage and cost
+
+Both adapters request provider-reported token counts and emit them as a final
+usage chunk. The AI layer normalises them into `AiUsage`
+(`inputTokens`, `outputTokens`, `totalTokens`, `estimated`, `estimatedCostUsd`)
+and falls back to character-based estimates when a provider reports nothing.
+`usage-log.ts` records the same content-free structure. There is no billing
+system and no new database table.
 
 `chat-provider.ts` and `openai-provider.ts` remain as thin compatibility
 re-exports so Week 1 / Week 2 modules (summarisation, memory extraction) and

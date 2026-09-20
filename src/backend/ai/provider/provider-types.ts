@@ -58,12 +58,18 @@ export interface ResolvedAiChatRequest {
 export interface AiUsage {
   inputTokens?: number;
   outputTokens?: number;
+  totalTokens?: number;
   /** True when the numbers are estimates rather than provider-reported. */
   estimated: boolean;
+  /** Indicative list-price cost in USD; omitted when not reliably known. */
+  estimatedCostUsd?: number;
 }
 
 export interface AiStreamChunk {
+  /** Incremental text; empty on a usage-only chunk. */
   delta: string;
+  /** Provider-reported usage, emitted at most once, usually last. */
+  usage?: AiUsage;
 }
 
 /** Standardised response (Task 3) — the caller never inspects raw payloads. */
@@ -160,6 +166,8 @@ export interface AiProviderDescriptor {
   available: boolean;
   defaultModel: string;
   models: string[];
+  /** Catalogue detail: capabilities, context window, cost metadata. */
+  modelDetails?: unknown[];
   status: "active" | "configured" | "planned";
 }
 

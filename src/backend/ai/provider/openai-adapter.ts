@@ -17,6 +17,7 @@ import {
   type ResolvedAiChatRequest,
 } from "@/backend/ai/provider/provider-types";
 import { getProviderSettings, hasCredential } from "@/backend/ai/provider/provider-config";
+import { clampOutputTokens, estimateCostUsd } from "@/backend/ai/provider/model-catalog";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
@@ -63,7 +64,9 @@ export const openAiAdapter: AiProviderAdapter = {
           model: request.model,
           stream: true,
           temperature: request.temperature,
-          max_tokens: request.maxOutputTokens,
+          max_tokens: clampOutputTokens(request.model, request.maxOutputTokens),
+          // Ask for provider-reported token counts on the final chunk.
+          stream_options: { include_usage: true },
           messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
@@ -100,9 +103,33 @@ export const openAiAdapter: AiProviderAdapter = {
         try {
           const parsed = JSON.parse(payload) as {
             choices?: Array<{ delta?: { content?: string } }>;
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              total_tokens?: number;
+            };
           };
           const delta = parsed.choices?.[0]?.delta?.content;
           if (delta) yield { delta };
+          if (parsed.usage) {
+            const inputTokens = parsed.usage.prompt_tokens;
+            const outputTokens = parsed.usage.completion_tokens;
+            const totalTokens = parsed.usage.total_tokens;
+            const cost = estimateCostUsd(request.model, {
+              ...(inputTokens !== undefined ? { inputTokens } : {}),
+              ...(outputTokens !== undefined ? { outputTokens } : {}),
+            });
+            yield {
+              delta: "",
+              usage: {
+                ...(inputTokens !== undefined ? { inputTokens } : {}),
+                ...(outputTokens !== undefined ? { outputTokens } : {}),
+                ...(totalTokens !== undefined ? { totalTokens } : {}),
+                estimated: false,
+                ...(cost !== undefined ? { estimatedCostUsd: cost } : {}),
+              },
+            };
+          }
         } catch {
           // Ignore malformed keep-alive fragments.
         }

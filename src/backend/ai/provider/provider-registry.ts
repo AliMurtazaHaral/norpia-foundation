@@ -7,6 +7,7 @@
 
 import { anthropicAdapter } from "@/backend/ai/provider/anthropic-adapter";
 import { openAiAdapter } from "@/backend/ai/provider/openai-adapter";
+import { listModels } from "@/backend/ai/provider/model-catalog";
 import {
   getActiveProviderId,
   listProviderSettings,

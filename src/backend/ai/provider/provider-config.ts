@@ -7,6 +7,7 @@
  * frontend and no key value is stored or logged here.
  */
 
+import { listModelIds } from "@/backend/ai/provider/model-catalog";
 import type { AiProviderId } from "@/backend/ai/provider/provider-types";
 
 function env(name: string): string | undefined {

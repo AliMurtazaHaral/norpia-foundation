@@ -11,6 +11,8 @@
 | [`AI_CHAT.md`](./AI_CHAT.md) | JARVIS chat: provider, streaming, persistence |
 | [`CONTEXT_MANAGEMENT.md`](./CONTEXT_MANAGEMENT.md) | Month 2 W1: context retrieval, context builder, summarization, limits |
 | [`LONG_TERM_MEMORY.md`](./LONG_TERM_MEMORY.md) | Month 2 W2: user memory model, categories, service, retrieval, RLS |
+| [`AI_PROVIDERS.md`](./AI_PROVIDERS.md) | Month 2 W3: provider abstraction, adapters, model catalogue |
+| [`AI_ORCHESTRATION.md`](./AI_ORCHESTRATION.md) | Month 2 W3: orchestration layer, classification, selection, fallback, telemetry |
 
 
 Live API reference: `/api/docs` (rendered from `/api/v1/openapi.json`).

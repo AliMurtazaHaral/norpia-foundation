@@ -248,12 +248,14 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   const estimatedInputTokens = stats.estimatedInputTokens;
 
   // Month 2 Week 3: the route no longer knows which vendor answers. It asks the
-  // NORPIA AI layer, which resolves the configured provider adapter.
-  let handle: ReturnType<typeof streamChatViaAiLayer>;
+  // NORPIA orchestration layer, which classifies the request, selects a model,
+  // applies the approved fallback and resolves the provider adapter.
+  let handle: Awaited<ReturnType<typeof orchestrateChatStream>>;
   let provider: ChatProvider;
   try {
-    handle = streamChatViaAiLayer({
+    handle = await orchestrateChatStream({
       messages,
+      classifyText: payload.message,
       maxOutputTokens: config.maxOutputTokens,
       temperature: config.temperature,
       metadata: { feature: "jarvis.chat", promptVersion: stats.promptVersion },
@@ -265,25 +267,10 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
       error instanceof AiProviderError
         ? error.message
         : "JARVIS could not answer right now. Please try again.";
-    return errorResponse(message, error instanceof AiProviderError ? error.status : 502);
-  }
-
-  // Start the upstream call here so a provider failure becomes a real HTTP
-  // error the UI can show, instead of a silent 200 with no assistant message.
-  const iterator = handle.stream[Symbol.asyncIterator]();
-
-  let firstChunk: IteratorResult<{ delta: string }>;
-  try {
-    firstChunk = await iterator.next();
-  } catch (error) {
-    const message =
-      error instanceof AiProviderError
-        ? error.message
-        : "JARVIS could not answer right now. Please try again.";
     logAiUsage({
       conversationId: conversation.id,
       userId: user.id,
-      provider: provider.id,
+      provider: "unavailable",
       model: config.model,
       promptVersion: stats.promptVersion,
       historyMessages: stats.historyMessages,
@@ -295,6 +282,10 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
     });
     return errorResponse(message, error instanceof AiProviderError ? error.status : 502);
   }
+
+  const model = handle.model;
+  const iterator = handle.stream[Symbol.asyncIterator]();
+  const firstChunk: IteratorResult<{ delta: string }> = { done: false, value: { delta: "" } };
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {

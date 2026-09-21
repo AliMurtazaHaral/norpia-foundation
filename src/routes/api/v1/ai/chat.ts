@@ -285,7 +285,12 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
 
   const model = handle.model;
   const iterator = handle.stream[Symbol.asyncIterator]();
-  const firstChunk: IteratorResult<{ delta: string }> = { done: false, value: { delta: "" } };
+  // The orchestrator already primed the upstream call, so a provider failure
+  // became an HTTP error above instead of a silent 200 with no reply.
+  const firstChunk: IteratorResult<{ delta: string }> = {
+    done: false,
+    value: { delta: "" },
+  } as IteratorResult<{ delta: string }>;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {

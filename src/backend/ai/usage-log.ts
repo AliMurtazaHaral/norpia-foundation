@@ -11,6 +11,12 @@ export interface AiUsageRecord {
   userId: string;
   provider: string;
   model: string;
+  /** Orchestration task type (Month 2 Week 3). */
+  task?: string;
+  /** True when the approved fallback provider served the request. */
+  usedFallback?: boolean;
+  /** Normalised error category when the request failed. */
+  errorCode?: string;
   promptVersion: string;
   historyMessages: number;
   droppedMessages: number;

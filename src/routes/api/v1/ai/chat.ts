@@ -13,7 +13,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { AiProviderError, type ChatProvider } from "@/backend/ai/chat-provider";
-import { streamChat as streamChatViaAiLayer } from "@/backend/ai/ai-service";
+import { orchestrateChatStream } from "@/backend/ai/orchestration/orchestrator";
 import { resolveProvider } from "@/backend/ai/provider/provider-registry";
 import {
   shouldSummarize,
@@ -314,7 +314,9 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             content: full,
             metadata: {
               provider: provider.id,
-              model: config.model,
+              model,
+              task: handle.classification.task,
+              used_fallback: handle.usedFallback,
               prompt_version: stats.promptVersion,
               context_messages: stats.historyMessages,
               summary_version: stats.summaryVersion,
@@ -359,7 +361,7 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             content: `${full}\n\n[${message}]`,
             metadata: {
               provider: provider.id,
-              model: config.model,
+              model,
               prompt_version: stats.promptVersion,
               interrupted: true,
             },
@@ -368,11 +370,15 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
       } finally {
         // Provider-reported usage when the adapter supplied it; estimates otherwise.
         const usage = handle.getUsage();
+        const telemetry = handle.getTelemetry();
         logAiUsage({
           conversationId: conversation.id,
           userId: user.id,
           provider: provider.id,
-          model: config.model,
+          model,
+          task: telemetry.task,
+          usedFallback: telemetry.usedFallback,
+          ...(telemetry.errorCode ? { errorCode: telemetry.errorCode } : {}),
           promptVersion: stats.promptVersion,
           historyMessages: stats.historyMessages,
           droppedMessages: stats.droppedMessages,

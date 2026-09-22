@@ -191,8 +191,33 @@ export async function prepareConversationContext(input: {
         alwaysIncludeImportance: config.memory.alwaysIncludeImportance,
         ...(lastUserTurn ? { query: lastUserTurn.content } : {}),
       });
-    } catch {
+      // Content-free observability: ids truncated, memory text never logged.
+      // eslint-disable-next-line no-console
+      console.info(
+        JSON.stringify({
+          event: "memory.retrieval.completed",
+          userId: input.userId.slice(0, 8),
+          conversationId: conversation.id.slice(0, 8),
+          hasQuery: Boolean(lastUserTurn),
+          selected: memories.length,
+          memoryIds: memories.map((memory) => memory.id.slice(0, 8)),
+          categories: memories.map((memory) => memory.category),
+          injectedIntoContext: memories.length > 0,
+        }),
+      );
+    } catch (error) {
+      // Non-fatal: the conversation continues without memories, but the
+      // failure must be identifiable in the server logs.
       memories = [];
+      // eslint-disable-next-line no-console
+      console.warn(
+        JSON.stringify({
+          event: "memory.retrieval.failed",
+          userId: input.userId.slice(0, 8),
+          conversationId: conversation.id.slice(0, 8),
+          reason: error instanceof Error ? error.name : "unknown",
+        }),
+      );
     }
   }
 

@@ -412,12 +412,21 @@ export async function extractMemoriesFromConversation(input: {
     ? `Existing memories about this user:\n${existing.map((m) => `- ${m.content}`).join("\n")}\n\n`
     : "No memories are stored about this user yet.\n\n";
 
+  // When the user literally asked to be remembered on something, say so: the
+  // model must not discard an explicit standing instruction as small talk.
+  const explicitBlock = input.explicitRequest
+    ? "The user explicitly asked the assistant to remember something in this excerpt. Capture that information as a memory if it is durable, and give it importance 4 or 5.\n\n"
+    : "";
+
   let raw: string;
   try {
     raw = await collect(provider, {
       messages: [
         { role: "system", content: MEMORY_EXTRACTION_PROMPT },
-        { role: "user", content: `${existingBlock}New conversation excerpt:\n\n${transcript}` },
+        {
+          role: "user",
+          content: `${existingBlock}${explicitBlock}New conversation excerpt:\n\n${transcript}`,
+        },
       ],
       model: settings.model ?? config.summary.model ?? config.model,
       maxOutputTokens: settings.maxOutputTokens,
@@ -439,19 +448,34 @@ export async function extractMemoriesFromConversation(input: {
   const result: ExtractionResult = { ...empty, analysedMessages: rows.length, skipped: plan.skipped };
 
   if (plan.creates.length) {
-    const { error: insertError } = await supabase.from("user_memories").insert(
-      plan.creates.map((candidate) => ({
-        user_id: userId,
-        content: candidate.content,
-        category: candidate.category,
-        importance: candidate.importance,
-        confidence: candidate.confidence,
-        source: "assistant",
-        source_conversation_id: conversationId,
-        metadata: { extracted: true },
-      })),
-    );
-    if (!insertError) result.created = plan.creates.length;
+    // A memory only counts as saved once the database confirms the row, and the
+    // returned ids are the proof — never the assistant's own acknowledgement.
+    const { data: inserted, error: insertError } = await supabase
+      .from("user_memories")
+      .insert(
+        plan.creates.map((candidate) => ({
+          user_id: userId,
+          content: candidate.content,
+          category: candidate.category,
+          importance: candidate.importance,
+          confidence: candidate.confidence,
+          source: input.explicitRequest ? "user" : "assistant",
+          source_conversation_id: conversationId,
+          metadata: { extracted: true, explicit: Boolean(input.explicitRequest) },
+        })),
+      )
+      .select("id, category");
+
+    if (insertError) {
+      result.persistenceFailed = true;
+    } else {
+      const rowsInserted = (inserted ?? []) as Array<{ id: string; category: string }>;
+      result.created = rowsInserted.length;
+      result.createdIds = rowsInserted.map((row) => row.id);
+      result.categories = rowsInserted.map((row) => row.category);
+      // An insert that silently stored nothing (e.g. RLS) must not look like success.
+      if (!rowsInserted.length) result.persistenceFailed = true;
+    }
   }
 
   for (const update of plan.updates) {
@@ -465,7 +489,8 @@ export async function extractMemoriesFromConversation(input: {
       })
       .eq("id", update.id)
       .eq("user_id", userId);
-    if (!updateError) result.updated += 1;
+    if (updateError) result.persistenceFailed = true;
+    else result.updated += 1;
   }
 
   if (plan.deactivates.length) {
@@ -474,16 +499,34 @@ export async function extractMemoriesFromConversation(input: {
       .update({ is_active: false })
       .eq("user_id", userId)
       .in("id", plan.deactivates);
-    if (!deactivateError) result.deactivated = plan.deactivates.length;
+    if (deactivateError) result.persistenceFailed = true;
+    else result.deactivated = plan.deactivates.length;
   }
 
-  // Move the bookmark only after a successful pass.
-  const lastRow = rows[rows.length - 1]!;
-  await supabase
-    .from("conversations")
-    .update({ memory_extracted_through: lastRow.created_at })
-    .eq("id", conversationId)
-    .eq("user_id", userId);
+  // Move the bookmark only after a pass that persisted everything it planned;
+  // otherwise the next turn re-analyses the same excerpt and tries again.
+  if (!result.persistenceFailed) {
+    const lastRow = rows[rows.length - 1]!;
+    await supabase
+      .from("conversations")
+      .update({ memory_extracted_through: lastRow.created_at })
+      .eq("id", conversationId)
+      .eq("user_id", userId);
+  }
+
+  logMemoryEvent("memory.extraction.completed", {
+    userId: userId.slice(0, 8),
+    conversationId: conversationId.slice(0, 8),
+    explicitRequest: Boolean(input.explicitRequest),
+    analysedMessages: result.analysedMessages,
+    created: result.created,
+    updated: result.updated,
+    deactivated: result.deactivated,
+    skipped: result.skipped,
+    persistenceFailed: result.persistenceFailed,
+    memoryIds: result.createdIds.map((id) => id.slice(0, 8)),
+    categories: result.categories,
+  });
 
   return result;
 }

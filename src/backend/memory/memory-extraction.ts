@@ -262,14 +262,49 @@ export function planMemoryChanges(input: {
 /* ------------------------------------------------------------------ Trigger */
 
 /**
- * Configurable trigger — never after every message. Extraction runs once a
- * conversation has produced at least `triggerMessages` unanalysed turns.
+ * Explicit "remember this" phrasings. When the user directly asks for something
+ * to be stored, waiting for `triggerMessages` unanalysed turns would silently
+ * lose the instruction — that was the root cause of memories never appearing in
+ * a short conversation. Detection is deterministic; the model still decides
+ * WHAT (if anything) is durable.
+ */
+const EXPLICIT_MEMORY_PATTERNS: RegExp[] = [
+  /\bremember\b/i,
+  /\bkeep (?:that |this )?in mind\b/i,
+  /\b(?:don'?t|do not) forget\b/i,
+  /\bmake a note\b/i,
+  /\bnote that\b/i,
+  /\bfor (?:future|later) reference\b/i,
+  /\bsave (?:that|this) (?:to|in) (?:your )?memory\b/i,
+  /\bfrom now on\b/i,
+  /\balways\b.*\b(?:answer|reply|respond|use|call me)\b/i,
+  // German — the product is used in a DACH context.
+  /\bmerk(?:e)? dir\b/i,
+  /\bmerken\b/i,
+  /\bnicht vergessen\b/i,
+  /\bab (?:jetzt|sofort)\b/i,
+];
+
+/** True when the user explicitly asked JARVIS to remember something. */
+export function detectExplicitMemoryRequest(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  return EXPLICIT_MEMORY_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+/**
+ * Configurable trigger. Normally extraction runs once a conversation has
+ * produced at least `triggerMessages` unanalysed turns — never after every
+ * message. An explicit user request bypasses that threshold so a directly
+ * stated durable fact is persisted immediately.
  */
 export function shouldExtractMemories(input: {
   unanalysedMessages: number;
   config: ContextConfig;
+  explicitRequest?: boolean;
 }): boolean {
   if (!input.config.memory.enabled || !input.config.memory.extraction.enabled) return false;
+  if (input.explicitRequest && input.unanalysedMessages > 0) return true;
   return input.unanalysedMessages >= input.config.memory.extraction.triggerMessages;
 }
 

@@ -328,6 +328,18 @@ export interface ExtractionResult {
   updated: number;
   deactivated: number;
   skipped: number;
+  /** Ids of rows actually written — proof of persistence, never assumed. */
+  createdIds: string[];
+  /** Categories written, for safe server-side observability. */
+  categories: string[];
+  /** True when a database write failed; the caller logs, the user never sees it. */
+  persistenceFailed: boolean;
+}
+
+/** Content-free structured log line; ids are truncated, content never logged. */
+function logMemoryEvent(event: string, fields: Record<string, unknown>): void {
+  // eslint-disable-next-line no-console
+  console.info(JSON.stringify({ event, ...fields }));
 }
 
 /**
@@ -348,6 +360,8 @@ export async function extractMemoriesFromConversation(input: {
   userId: string;
   /** Bookmark from the conversation row; only newer messages are analysed. */
   extractedThrough?: string | null;
+  /** The user explicitly asked for something to be remembered in this excerpt. */
+  explicitRequest?: boolean;
 }): Promise<ExtractionResult> {
   const { supabase, provider, config, conversationId, userId } = input;
   const settings = config.memory.extraction;
@@ -357,6 +371,9 @@ export async function extractMemoriesFromConversation(input: {
     updated: 0,
     deactivated: 0,
     skipped: 0,
+    createdIds: [],
+    categories: [],
+    persistenceFailed: false,
   };
 
   let query = supabase

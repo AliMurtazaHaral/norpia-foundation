@@ -25,6 +25,7 @@ import { ContextError, prepareConversationContext, loadOwnedConversation } from 
 import { estimateTokens } from "@/backend/ai/context-manager";
 import { logAiUsage } from "@/backend/ai/usage-log";
 import {
+  detectExplicitMemoryRequest,
   extractMemoriesFromConversation,
   shouldExtractMemories,
 } from "@/backend/memory/memory-extraction";
@@ -116,6 +117,8 @@ async function maybeExtractMemories(input: {
   conversationId: string;
   userId: string;
   extractedThrough: string | null;
+  /** The user asked, in this turn, for something to be remembered. */
+  explicitRequest: boolean;
 }): Promise<void> {
   const { config } = input;
   if (!config.memory.enabled || !config.memory.extraction.enabled) return;
@@ -129,7 +132,15 @@ async function maybeExtractMemories(input: {
 
     const { count, error } = await countQuery;
     if (error || typeof count !== "number") return;
-    if (!shouldExtractMemories({ unanalysedMessages: count, config })) return;
+    if (
+      !shouldExtractMemories({
+        unanalysedMessages: count,
+        config,
+        explicitRequest: input.explicitRequest,
+      })
+    ) {
+      return;
+    }
 
     await extractMemoriesFromConversation({
       supabase: input.supabase,
@@ -138,6 +149,7 @@ async function maybeExtractMemories(input: {
       conversationId: input.conversationId,
       userId: input.userId,
       extractedThrough: input.extractedThrough,
+      explicitRequest: input.explicitRequest,
     });
   } catch (error) {
     // Technical detail stays server-side; the user never sees memory failures.
@@ -349,6 +361,7 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
             conversationId: conversation.id,
             userId: user.id,
             extractedThrough: conversation.memory_extracted_through ?? null,
+            explicitRequest: detectExplicitMemoryRequest(payload.message),
           });
         }
       } catch (error) {

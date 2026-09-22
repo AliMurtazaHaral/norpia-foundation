@@ -262,14 +262,49 @@ export function planMemoryChanges(input: {
 /* ------------------------------------------------------------------ Trigger */
 
 /**
- * Configurable trigger — never after every message. Extraction runs once a
- * conversation has produced at least `triggerMessages` unanalysed turns.
+ * Explicit "remember this" phrasings. When the user directly asks for something
+ * to be stored, waiting for `triggerMessages` unanalysed turns would silently
+ * lose the instruction — that was the root cause of memories never appearing in
+ * a short conversation. Detection is deterministic; the model still decides
+ * WHAT (if anything) is durable.
+ */
+const EXPLICIT_MEMORY_PATTERNS: RegExp[] = [
+  /\bremember\b/i,
+  /\bkeep (?:that |this )?in mind\b/i,
+  /\b(?:don'?t|do not) forget\b/i,
+  /\bmake a note\b/i,
+  /\bnote that\b/i,
+  /\bfor (?:future|later) reference\b/i,
+  /\bsave (?:that|this) (?:to|in) (?:your )?memory\b/i,
+  /\bfrom now on\b/i,
+  /\balways\b.*\b(?:answer|reply|respond|use|call me)\b/i,
+  // German — the product is used in a DACH context.
+  /\bmerk(?:e)? dir\b/i,
+  /\bmerken\b/i,
+  /\bnicht vergessen\b/i,
+  /\bab (?:jetzt|sofort)\b/i,
+];
+
+/** True when the user explicitly asked JARVIS to remember something. */
+export function detectExplicitMemoryRequest(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  return EXPLICIT_MEMORY_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+/**
+ * Configurable trigger. Normally extraction runs once a conversation has
+ * produced at least `triggerMessages` unanalysed turns — never after every
+ * message. An explicit user request bypasses that threshold so a directly
+ * stated durable fact is persisted immediately.
  */
 export function shouldExtractMemories(input: {
   unanalysedMessages: number;
   config: ContextConfig;
+  explicitRequest?: boolean;
 }): boolean {
   if (!input.config.memory.enabled || !input.config.memory.extraction.enabled) return false;
+  if (input.explicitRequest && input.unanalysedMessages > 0) return true;
   return input.unanalysedMessages >= input.config.memory.extraction.triggerMessages;
 }
 
@@ -293,6 +328,18 @@ export interface ExtractionResult {
   updated: number;
   deactivated: number;
   skipped: number;
+  /** Ids of rows actually written — proof of persistence, never assumed. */
+  createdIds: string[];
+  /** Categories written, for safe server-side observability. */
+  categories: string[];
+  /** True when a database write failed; the caller logs, the user never sees it. */
+  persistenceFailed: boolean;
+}
+
+/** Content-free structured log line; ids are truncated, content never logged. */
+function logMemoryEvent(event: string, fields: Record<string, unknown>): void {
+  // eslint-disable-next-line no-console
+  console.info(JSON.stringify({ event, ...fields }));
 }
 
 /**
@@ -313,6 +360,8 @@ export async function extractMemoriesFromConversation(input: {
   userId: string;
   /** Bookmark from the conversation row; only newer messages are analysed. */
   extractedThrough?: string | null;
+  /** The user explicitly asked for something to be remembered in this excerpt. */
+  explicitRequest?: boolean;
 }): Promise<ExtractionResult> {
   const { supabase, provider, config, conversationId, userId } = input;
   const settings = config.memory.extraction;
@@ -322,6 +371,9 @@ export async function extractMemoriesFromConversation(input: {
     updated: 0,
     deactivated: 0,
     skipped: 0,
+    createdIds: [],
+    categories: [],
+    persistenceFailed: false,
   };
 
   let query = supabase
@@ -360,12 +412,21 @@ export async function extractMemoriesFromConversation(input: {
     ? `Existing memories about this user:\n${existing.map((m) => `- ${m.content}`).join("\n")}\n\n`
     : "No memories are stored about this user yet.\n\n";
 
+  // When the user literally asked to be remembered on something, say so: the
+  // model must not discard an explicit standing instruction as small talk.
+  const explicitBlock = input.explicitRequest
+    ? "The user explicitly asked the assistant to remember something in this excerpt. Capture that information as a memory if it is durable, and give it importance 4 or 5.\n\n"
+    : "";
+
   let raw: string;
   try {
     raw = await collect(provider, {
       messages: [
         { role: "system", content: MEMORY_EXTRACTION_PROMPT },
-        { role: "user", content: `${existingBlock}New conversation excerpt:\n\n${transcript}` },
+        {
+          role: "user",
+          content: `${existingBlock}${explicitBlock}New conversation excerpt:\n\n${transcript}`,
+        },
       ],
       model: settings.model ?? config.summary.model ?? config.model,
       maxOutputTokens: settings.maxOutputTokens,
@@ -387,19 +448,34 @@ export async function extractMemoriesFromConversation(input: {
   const result: ExtractionResult = { ...empty, analysedMessages: rows.length, skipped: plan.skipped };
 
   if (plan.creates.length) {
-    const { error: insertError } = await supabase.from("user_memories").insert(
-      plan.creates.map((candidate) => ({
-        user_id: userId,
-        content: candidate.content,
-        category: candidate.category,
-        importance: candidate.importance,
-        confidence: candidate.confidence,
-        source: "assistant",
-        source_conversation_id: conversationId,
-        metadata: { extracted: true },
-      })),
-    );
-    if (!insertError) result.created = plan.creates.length;
+    // A memory only counts as saved once the database confirms the row, and the
+    // returned ids are the proof — never the assistant's own acknowledgement.
+    const { data: inserted, error: insertError } = await supabase
+      .from("user_memories")
+      .insert(
+        plan.creates.map((candidate) => ({
+          user_id: userId,
+          content: candidate.content,
+          category: candidate.category,
+          importance: candidate.importance,
+          confidence: candidate.confidence,
+          source: input.explicitRequest ? "user" : "assistant",
+          source_conversation_id: conversationId,
+          metadata: { extracted: true, explicit: Boolean(input.explicitRequest) },
+        })),
+      )
+      .select("id, category");
+
+    if (insertError) {
+      result.persistenceFailed = true;
+    } else {
+      const rowsInserted = (inserted ?? []) as Array<{ id: string; category: string }>;
+      result.created = rowsInserted.length;
+      result.createdIds = rowsInserted.map((row) => row.id);
+      result.categories = rowsInserted.map((row) => row.category);
+      // An insert that silently stored nothing (e.g. RLS) must not look like success.
+      if (!rowsInserted.length) result.persistenceFailed = true;
+    }
   }
 
   for (const update of plan.updates) {
@@ -413,7 +489,8 @@ export async function extractMemoriesFromConversation(input: {
       })
       .eq("id", update.id)
       .eq("user_id", userId);
-    if (!updateError) result.updated += 1;
+    if (updateError) result.persistenceFailed = true;
+    else result.updated += 1;
   }
 
   if (plan.deactivates.length) {
@@ -422,16 +499,34 @@ export async function extractMemoriesFromConversation(input: {
       .update({ is_active: false })
       .eq("user_id", userId)
       .in("id", plan.deactivates);
-    if (!deactivateError) result.deactivated = plan.deactivates.length;
+    if (deactivateError) result.persistenceFailed = true;
+    else result.deactivated = plan.deactivates.length;
   }
 
-  // Move the bookmark only after a successful pass.
-  const lastRow = rows[rows.length - 1]!;
-  await supabase
-    .from("conversations")
-    .update({ memory_extracted_through: lastRow.created_at })
-    .eq("id", conversationId)
-    .eq("user_id", userId);
+  // Move the bookmark only after a pass that persisted everything it planned;
+  // otherwise the next turn re-analyses the same excerpt and tries again.
+  if (!result.persistenceFailed) {
+    const lastRow = rows[rows.length - 1]!;
+    await supabase
+      .from("conversations")
+      .update({ memory_extracted_through: lastRow.created_at })
+      .eq("id", conversationId)
+      .eq("user_id", userId);
+  }
+
+  logMemoryEvent("memory.extraction.completed", {
+    userId: userId.slice(0, 8),
+    conversationId: conversationId.slice(0, 8),
+    explicitRequest: Boolean(input.explicitRequest),
+    analysedMessages: result.analysedMessages,
+    created: result.created,
+    updated: result.updated,
+    deactivated: result.deactivated,
+    skipped: result.skipped,
+    persistenceFailed: result.persistenceFailed,
+    memoryIds: result.createdIds.map((id) => id.slice(0, 8)),
+    categories: result.categories,
+  });
 
   return result;
 }

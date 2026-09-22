@@ -25,6 +25,7 @@ import { ContextError, prepareConversationContext, loadOwnedConversation } from 
 import { estimateTokens } from "@/backend/ai/context-manager";
 import { logAiUsage } from "@/backend/ai/usage-log";
 import {
+  detectExplicitMemoryRequest,
   extractMemoriesFromConversation,
   shouldExtractMemories,
 } from "@/backend/memory/memory-extraction";

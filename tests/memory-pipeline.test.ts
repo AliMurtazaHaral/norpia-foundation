@@ -62,7 +62,11 @@ function stubDb(options: { memories?: UserMemory[]; messages?: unknown[]; failRe
         gt: () => builder,
         in: () => builder,
         order: () => builder,
-        limit: () => resolveRead(),
+        limit: () => {
+          const promise = resolveRead() as Promise<unknown> & { returns?: () => unknown };
+          promise.returns = () => promise;
+          return promise;
+        },
         returns: () => builder,
         insert: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
           const list = Array.isArray(rows) ? rows : [rows];

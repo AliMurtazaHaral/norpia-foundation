@@ -137,15 +137,27 @@ adds `user_memories.confidence` and `conversations.memory_extracted_through`.
 finished, never on every message:
 
 1. Trigger — at least `MEMORY_EXTRACTION_TRIGGER_MESSAGES` messages newer than
-   the conversation's extraction bookmark.
+   the conversation's extraction bookmark, **or** an explicit request in the
+   current user message (`detectExplicitMemoryRequest`: "remember…",
+   "don't forget…", "from now on…", "merk dir…"). Without the explicit path a
+   short conversation such as "Remember that my company is based in
+   Switzerland." never reached the threshold and nothing was ever stored — that
+   was the cross-conversation memory bug.
 2. Only those unanalysed turns are read (bounded by rows and characters).
 3. The model receives the extraction rules plus the user's existing active
    memories, and answers with strict JSON candidates
    (`content`, `category`, `importance`, `confidence`, `replaces`).
 4. `planMemoryChanges` filters by `MEMORY_MIN_CONFIDENCE` / `MEMORY_MIN_IMPORTANCE`,
    detects duplicates by normalised word overlap, and decides create / update / skip.
-5. Writes happen through the caller's RLS-scoped client, then the bookmark moves
-   forward. Failure is non-fatal and leaves the bookmark untouched.
+5. Writes happen through the caller's RLS-scoped client and the insert returns
+   the stored ids: a memory counts as saved only when the database confirms the
+   row, never because the assistant said so. The bookmark moves forward only
+   after a pass whose writes all succeeded; failure is non-fatal, leaves the
+   bookmark untouched and is logged server-side
+   (`memory.extraction.completed` with `persistenceFailed: true`).
+6. Retrieval is logged the same way (`memory.retrieval.completed` /
+   `memory.retrieval.failed`): truncated user/conversation ids, selected count,
+   truncated memory ids and categories — never memory content or secrets.
 
 Duplicate and update handling:
 

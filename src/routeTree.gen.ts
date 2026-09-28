@@ -32,6 +32,8 @@ import { Route as ApiV1AiProvidersRouteImport } from './routes/api/v1/ai/provide
 import { Route as ApiV1MemoriesIndexRouteImport } from './routes/api/v1/memories/index'
 import { Route as ApiV1MemoriesIdRouteImport } from './routes/api/v1/memories/$id'
 import { Route as ApiV1SystemArchitectureRouteImport } from './routes/api/v1/system/architecture'
+import { Route as ApiV1ToolsIndexRouteImport } from './routes/api/v1/tools/index'
+import { Route as ApiV1ToolsExecuteRouteImport } from './routes/api/v1/tools/execute'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -148,6 +150,16 @@ const ApiV1SystemArchitectureRoute = ApiV1SystemArchitectureRouteImport.update({
   path: '/api/v1/system/architecture',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1ToolsIndexRoute = ApiV1ToolsIndexRouteImport.update({
+  id: '/api/v1/tools/',
+  path: '/api/v1/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1ToolsExecuteRoute = ApiV1ToolsExecuteRouteImport.update({
+  id: '/api/v1/tools/execute',
+  path: '/api/v1/tools/execute',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -171,7 +183,9 @@ export interface FileRoutesByFullPath {
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/tools/execute': typeof ApiV1ToolsExecuteRoute
   '/api/v1/memories/': typeof ApiV1MemoriesIndexRoute
+  '/api/v1/tools/': typeof ApiV1ToolsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -194,7 +208,9 @@ export interface FileRoutesByTo {
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/tools/execute': typeof ApiV1ToolsExecuteRoute
   '/api/v1/memories': typeof ApiV1MemoriesIndexRoute
+  '/api/v1/tools': typeof ApiV1ToolsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -220,7 +236,9 @@ export interface FileRoutesById {
   '/api/v1/ai/providers': typeof ApiV1AiProvidersRoute
   '/api/v1/memories/$id': typeof ApiV1MemoriesIdRoute
   '/api/v1/system/architecture': typeof ApiV1SystemArchitectureRoute
+  '/api/v1/tools/execute': typeof ApiV1ToolsExecuteRoute
   '/api/v1/memories/': typeof ApiV1MemoriesIndexRoute
+  '/api/v1/tools/': typeof ApiV1ToolsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -246,7 +264,9 @@ export interface FileRouteTypes {
     | '/api/v1/ai/providers'
     | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/tools/execute'
     | '/api/v1/memories/'
+    | '/api/v1/tools/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -269,7 +289,9 @@ export interface FileRouteTypes {
     | '/api/v1/ai/providers'
     | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/tools/execute'
     | '/api/v1/memories'
+    | '/api/v1/tools'
   id:
     | '__root__'
     | '/'
@@ -294,7 +316,9 @@ export interface FileRouteTypes {
     | '/api/v1/ai/providers'
     | '/api/v1/memories/$id'
     | '/api/v1/system/architecture'
+    | '/api/v1/tools/execute'
     | '/api/v1/memories/'
+    | '/api/v1/tools/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -313,7 +337,9 @@ export interface RootRouteChildren {
   ApiV1AiProvidersRoute: typeof ApiV1AiProvidersRoute
   ApiV1MemoriesIdRoute: typeof ApiV1MemoriesIdRoute
   ApiV1SystemArchitectureRoute: typeof ApiV1SystemArchitectureRoute
+  ApiV1ToolsExecuteRoute: typeof ApiV1ToolsExecuteRoute
   ApiV1MemoriesIndexRoute: typeof ApiV1MemoriesIndexRoute
+  ApiV1ToolsIndexRoute: typeof ApiV1ToolsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -479,6 +505,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1SystemArchitectureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/tools/': {
+      id: '/api/v1/tools/'
+      path: '/api/v1/tools'
+      fullPath: '/api/v1/tools/'
+      preLoaderRoute: typeof ApiV1ToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/tools/execute': {
+      id: '/api/v1/tools/execute'
+      path: '/api/v1/tools/execute'
+      fullPath: '/api/v1/tools/execute'
+      preLoaderRoute: typeof ApiV1ToolsExecuteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -530,7 +570,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiV1AiProvidersRoute: ApiV1AiProvidersRoute,
   ApiV1MemoriesIdRoute: ApiV1MemoriesIdRoute,
   ApiV1SystemArchitectureRoute: ApiV1SystemArchitectureRoute,
+  ApiV1ToolsExecuteRoute: ApiV1ToolsExecuteRoute,
   ApiV1MemoriesIndexRoute: ApiV1MemoriesIndexRoute,
+  ApiV1ToolsIndexRoute: ApiV1ToolsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

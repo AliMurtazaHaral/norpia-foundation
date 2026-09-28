@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { ToolRegistryPanel } from "@/components/admin/tool-registry-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import { RequireRole } from "@/lib/auth/require-role";
 
@@ -30,6 +31,9 @@ function AdminPage() {
             this screen only reflects it.
           </p>
         </section>
+        <div className="mt-6">
+          <ToolRegistryPanel />
+        </div>
       </RequireRole>
     </AppShell>
   );

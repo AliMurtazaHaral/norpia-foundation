@@ -21,3 +21,4 @@ Live API reference: `/api/docs` (rendered from `/api/v1/openapi.json`).
 
 See [development-environment.md](./development-environment.md) for Docker, env vars and startup commands.
 - [AI provider abstraction](./AI_PROVIDERS.md) — provider-agnostic AI layer (Month 2 Week 3)
+| [`TOOLS.md`](./TOOLS.md) | Month 2 W4: tool layer, registry, execution contract, MCP foundation |

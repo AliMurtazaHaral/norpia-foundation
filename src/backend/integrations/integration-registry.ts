@@ -26,7 +26,7 @@ const registry = new Map<string, IntegrationProvider>(
   [
     planned({ id: "openai", label: "OpenAI", category: "ai", auth: "api-key", plannedFor: "Week 4" }),
     planned({ id: "anthropic", label: "Anthropic", category: "ai", auth: "api-key", plannedFor: "Week 4" }),
-    planned({ id: "mcp", label: "Model Context Protocol", category: "protocol", auth: "none", plannedFor: "Phase 2" }),
+    planned({ id: "mcp", label: "Model Context Protocol", category: "protocol", auth: "none", plannedFor: "Month 2 Week 4 (tool layer ready)" }),
     planned({ id: "n8n", label: "n8n", category: "automation", auth: "api-key", plannedFor: "Phase 2" }),
     planned({
       id: "gmail",

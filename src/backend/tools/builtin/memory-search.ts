@@ -32,8 +32,9 @@ export const memorySearchTool = defineTool({
   async handler({ query, limit }, ctx) {
     const memories = await retrieveRelevantMemories(ctx.supabase, ctx.userId, {
       query,
-      maxItems: limit,
-    } as Parameters<typeof retrieveRelevantMemories>[2]);
+      maxMemories: limit,
+      maxCharacters: 4_000,
+    });
     return {
       items: memories.map((m) => ({ content: m.content, category: m.category, importance: m.importance })),
     };

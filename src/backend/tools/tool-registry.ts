@@ -12,7 +12,9 @@ import type { ToolDefinition, ToolDescriptor, ToolPermission, UserRoleName } fro
 
 const registry = new Map<string, ToolDefinition>();
 
-export function registerTool(tool: ToolDefinition): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function registerTool(definition: ToolDefinition<any, any>): void {
+  const tool = definition as ToolDefinition;
   if (!/^[a-z][a-z0-9_.-]{1,63}$/.test(tool.id)) throw new Error(`Invalid tool id: ${tool.id}`);
   if (registry.has(tool.id)) throw new Error(`Tool already registered: ${tool.id}`);
   registry.set(tool.id, tool);

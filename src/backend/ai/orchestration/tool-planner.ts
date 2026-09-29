@@ -150,3 +150,23 @@ export function logToolCall(record: ToolCallRecord, provider?: string, model?: s
     }),
   );
 }
+
+/**
+ * One controlled tool step for a chat turn. Never throws: any failure leaves
+ * the original messages untouched so ordinary chat keeps working.
+ */
+export async function applyToolStep(
+  message: string,
+  messages: AiTurn[],
+  context: ExecutionContextInput,
+): Promise<{ messages: AiTurn[]; intent: RequestIntent; record: ToolCallRecord | null }> {
+  try {
+    const plan = planToolCall(message, context.permissions);
+    const intent = detectIntent(message, plan);
+    if (!plan) return { messages, intent, record: null };
+    const record = await executePlannedTool(plan, context);
+    return { messages: withToolResult(messages, renderToolResult(record)), intent, record };
+  } catch {
+    return { messages, intent: "conversation", record: null };
+  }
+}

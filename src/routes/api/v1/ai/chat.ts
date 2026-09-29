@@ -14,6 +14,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { AiProviderError, type ChatProvider } from "@/backend/ai/chat-provider";
 import { orchestrateChatStream } from "@/backend/ai/orchestration/orchestrator";
+import { applyToolStep, logToolCall } from "@/backend/ai/orchestration/tool-planner";
+import { resolveToolAccess } from "@/backend/tools/tool-http";
 import { resolveProvider } from "@/backend/ai/provider/provider-registry";
 import {
   shouldSummarize,
@@ -262,11 +264,26 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
   // Month 2 Week 3: the route no longer knows which vendor answers. It asks the
   // NORPIA orchestration layer, which classifies the request, selects a model,
   // applies the approved fallback and resolves the provider adapter.
+  // Month 2 Week 4: controlled tool step. Permissions come from user_roles
+  // (RLS); only registered, enabled, permitted tools can run. The result is
+  // handed to the provider as context — adapters never contain tool code.
+  const access = await resolveToolAccess(supabase, user.id).catch(() => null);
+  const toolStep = access
+    ? await applyToolStep(payload.message, messages, {
+        supabase,
+        userId: user.id,
+        role: access.role,
+        permissions: access.permissions,
+        requestId: crypto.randomUUID(),
+        signal: request.signal,
+      })
+    : { messages, record: null };
+
   let handle: Awaited<ReturnType<typeof orchestrateChatStream>>;
   let provider: ChatProvider;
   try {
     handle = await orchestrateChatStream({
-      messages,
+      messages: toolStep.messages,
       classifyText: payload.message,
       maxOutputTokens: config.maxOutputTokens,
       temperature: config.temperature,
@@ -274,6 +291,7 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
     });
     // Same adapter, reused for the best-effort maintenance passes below.
     provider = resolveProvider(handle.provider);
+    if (toolStep.record) logToolCall(toolStep.record, handle.provider, handle.model);
   } catch (error) {
     const message =
       error instanceof AiProviderError

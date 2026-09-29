@@ -70,3 +70,22 @@ and register the resulting definitions; executor, permissions and audit stay the
 
 MCP client connections, model-driven tool calling in chat, n8n, AI Employees,
 autonomous agents, marketplace, advanced automation.
+
+## Chat integration (Week 4, Part 2)
+
+`src/backend/ai/orchestration/tool-planner.ts` connects JARVIS chat to the tool layer:
+
+1. The chat route builds context + memory exactly as before (Weeks 1–2).
+2. Role/permissions are read from `user_roles` (RLS) via `resolveToolAccess`.
+3. `planToolCall` uses deterministic keyword rules and only considers tools that are
+   registered, enabled, available and permitted (`system.time` for time/date questions,
+   `memory.search` for "what do you remember about…").
+4. `executeTool` validates, executes with timeout and normalises the result.
+5. The normalised result (`ToolCallRecord`: tool id/name, request id, user id, input,
+   timestamp, status, result or error category) is inserted as a system block directly
+   before the current message and sent through the Week 3 orchestrator/provider layer.
+6. `ai.tool.call` logs a content-free line (ids, status, duration, provider/model).
+
+Implemented: MCP-style discovery, name, description, input schema, invocation, structured
+results and errors for internal tools. Prepared only: external MCP servers, model-driven
+native function calling, multi-step tool loops. Any tool-step failure leaves chat unchanged.

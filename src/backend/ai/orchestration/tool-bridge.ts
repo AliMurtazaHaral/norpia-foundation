@@ -2,7 +2,7 @@
  * Month 2 — Week 4 (Part 1): the single seam between orchestration and the
  * tool layer. The AI provider may later return "call tool X with Y"; the
  * orchestrator hands that to `runToolForOrchestration`, never to an adapter.
- * JARVIS chat does not invoke tools yet.
+ * JARVIS chat reaches tools only through tool-planner → this bridge.
  */
 
 import { executeTool, type ExecutionContextInput } from "@/backend/tools/tool-executor";

@@ -56,7 +56,7 @@ describe("provider configuration", () => {
     delete process.env["AI_PROVIDER"];
     process.env["AI_MODEL"] = "gpt-4o";
     expect(getDefaultModel("openai")).toBe("gpt-4o");
-    expect(getDefaultModel("anthropic")).toBe("claude-3-5-sonnet-latest");
+    expect(getDefaultModel("anthropic")).toBe("claude-sonnet-4-5");
   });
 
   it("reports availability from server-side credentials only", () => {
@@ -107,7 +107,7 @@ describe("provider registry", () => {
     await expect(async () => {
       for await (const _ of adapter.streamChat({
         messages: [{ role: "user", content: "hi" }],
-        model: "claude-3-5-sonnet-latest",
+        model: "claude-sonnet-4-5",
         temperature: 0.2,
         maxOutputTokens: 100,
       })) {

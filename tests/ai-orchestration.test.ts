@@ -119,7 +119,7 @@ describe("model selection", () => {
   it("routes an explicitly named model to the provider that serves it", () => {
     const selection = selectModelForTask({
       task: "general-conversation",
-      model: "claude-3-5-sonnet-latest",
+      model: "claude-sonnet-4-5",
     });
     expect(selection.provider).toBe("anthropic");
   });
@@ -219,7 +219,7 @@ describe("orchestrated execution", () => {
 
 describe("security: client-supplied provider selection", () => {
   it("ignores client selection by default", () => {
-    expect(validateClientSelection({ provider: "anthropic", model: "claude-3-5-sonnet-latest" }))
+    expect(validateClientSelection({ provider: "anthropic", model: "claude-sonnet-4-5" }))
       .toEqual({});
   });
 

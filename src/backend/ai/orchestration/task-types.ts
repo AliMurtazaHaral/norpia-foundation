@@ -60,6 +60,8 @@ export interface AiRequestTelemetry {
   /** Provider that was tried first when a fallback took over. */
   primaryProvider?: AiProviderId;
   usedFallback: boolean;
+  /** Why this provider/model was chosen (explicit, task-route, default, …). */
+  routingReason?: string;
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;

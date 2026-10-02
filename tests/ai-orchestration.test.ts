@@ -104,6 +104,7 @@ describe("model selection", () => {
   });
 
   it("selects a capable model when the default cannot serve the task", () => {
+    process.env["AI_TASK_ROUTING"] = "false";
     const selection = selectModelForTask({ task: "document-question" });
     expect(selection.provider).toBe("openai");
     expect(selection.model).toBe("gpt-4.1-mini"); // long-context capable
@@ -112,6 +113,7 @@ describe("model selection", () => {
 
   it("respects a cheapest cost preference", () => {
     process.env["AI_COST_PREFERENCE"] = "cheapest";
+    process.env["AI_TASK_ROUTING"] = "false";
     const selection = selectModelForTask({ task: "document-question" });
     expect(selection.model).toBe("gpt-4.1-mini");
   });

@@ -101,7 +101,9 @@ describe("provider registry", () => {
     expect(response.provider).toBe("test-provider");
   });
 
-  it("Claude is registered but not yet usable", async () => {
+  it("Claude without a key fails safely", async () => {
+    const saved = process.env["ANTHROPIC_API_KEY"];
+    delete process.env["ANTHROPIC_API_KEY"];
     const adapter = resolveProvider("anthropic");
     expect(adapter.isConfigured()).toBe(false);
     await expect(async () => {
@@ -114,6 +116,7 @@ describe("provider registry", () => {
         // unreachable
       }
     }).rejects.toBeInstanceOf(AiProviderError);
+    if (saved !== undefined) process.env["ANTHROPIC_API_KEY"] = saved;
   });
 });
 

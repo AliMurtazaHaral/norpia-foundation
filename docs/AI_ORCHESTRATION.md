@@ -97,3 +97,20 @@ agents / AI employees, multi-agent orchestration and autonomous cost
 optimisation are **deliberately out of scope**. `tool-request` and the
 capability metadata exist so those phases can be added later without changing
 JARVIS, the context builder, the memory system or the provider adapters.
+
+## OpenAI + Anthropic together (update)
+
+- One request → one provider. Task routing (`DEFAULT_TASK_PROVIDERS`): `reasoning`
+  and `document-question` → Anthropic (`claude-sonnet-4-5`) when `ANTHROPIC_API_KEY`
+  is set; everything else → OpenAI. Override with `AI_PROVIDER_<TASK>`, disable with
+  `AI_TASK_ROUTING=false`.
+- Fallback only for `FALLBACK_ELIGIBLE` errors (authentication, rate_limit, timeout,
+  provider_unavailable, model_unavailable, provider_error) — never invalid_request,
+  context_limit or tool_error. One attempt, no loops. Still off unless
+  `AI_FALLBACK_ENABLED=true` + `AI_FALLBACK_PROVIDER`.
+- `AI_DUAL_PROVIDER_COMPARISON` is reserved and off; nothing sends to both providers.
+- Telemetry/usage log now carry `primaryProvider` and `routingReason`
+  (`provider-default`, `task-route`, `task-override`, `capability-match`,
+  `explicit-request`, `fallback`). `GET /api/v1/ai/providers` shows routing rules.
+- `ANTHROPIC_WORKSPACE_ID` is required when the Anthropic key is organisation-level
+  (not scoped to a workspace).

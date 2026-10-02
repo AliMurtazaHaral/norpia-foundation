@@ -100,9 +100,9 @@ const MODELS: ModelDefinition[] = [
 
   /* ------------------------------------------------------- Anthropic */
   {
-    id: "claude-sonnet-4-5",
+    id: "claude-sonnet-4-6",
     provider: "anthropic",
-    label: "Claude Sonnet 4.5",
+    label: "Claude Sonnet 4.6",
     capabilities: ["text", "reasoning", "long-context", "structured-output", "tools", "vision", "streaming"],
     contextWindow: 200_000,
     maxOutputTokens: 16_384,
@@ -110,7 +110,7 @@ const MODELS: ModelDefinition[] = [
     cost: { inputPerMillion: 3, outputPerMillion: 15, currency: "USD" },
   },
   {
-    id: "claude-haiku-4-5",
+    id: "claude-haiku-4-5-20251001",
     provider: "anthropic",
     label: "Claude Haiku 4.5",
     capabilities: ["text", "long-context", "structured-output", "tools", "streaming"],

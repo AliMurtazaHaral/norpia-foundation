@@ -38,19 +38,19 @@ describe("model catalogue", () => {
 
   it("serves the provider model lists from the catalogue", () => {
     expect(listModelIds("openai")).toContain("gpt-4o-mini");
-    expect(listModelIds("anthropic")).toContain("claude-sonnet-4-5");
+    expect(listModelIds("anthropic")).toContain("claude-sonnet-4-6");
   });
 
   it("exposes capabilities and context windows", () => {
     expect(modelSupports("gpt-4o", "vision")).toBe(true);
-    expect(modelSupports("claude-haiku-4-5", "vision")).toBe(false);
-    expect(getContextWindow("claude-sonnet-4-5")).toBe(200_000);
+    expect(modelSupports("claude-haiku-4-5-20251001", "vision")).toBe(false);
+    expect(getContextWindow("claude-sonnet-4-6")).toBe(200_000);
     expect(getContextWindow("unknown-model", 1234)).toBe(1234);
   });
 
   it("clamps output tokens to the model ceiling", () => {
-    const ceiling = getModelDefinition("claude-sonnet-4-5")!.maxOutputTokens;
-    expect(clampOutputTokens("claude-sonnet-4-5", 999_999)).toBe(ceiling);
+    const ceiling = getModelDefinition("claude-sonnet-4-6")!.maxOutputTokens;
+    expect(clampOutputTokens("claude-sonnet-4-6", 999_999)).toBe(ceiling);
     expect(clampOutputTokens("unknown-model", 999)).toBe(999);
   });
 
@@ -77,9 +77,9 @@ describe("provider selection", () => {
 
   it("routes a named model to the provider that serves it", () => {
     delete process.env["AI_PROVIDER"];
-    expect(selectProviderAndModel({ model: "claude-haiku-4-5" })).toMatchObject({
+    expect(selectProviderAndModel({ model: "claude-haiku-4-5-20251001" })).toMatchObject({
       provider: "anthropic",
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-4-5-20251001",
     });
   });
 
@@ -134,7 +134,7 @@ describe("request compatibility across providers", () => {
         { role: "user", content: "one" },
         { role: "user", content: "two" },
       ],
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       temperature: 0.2,
       maxOutputTokens: 100,
     });
@@ -150,7 +150,7 @@ describe("Anthropic adapter safety", () => {
     await expect(async () => {
       for await (const _ of anthropicAdapter.streamChat({
         messages: [{ role: "user", content: "hi" }],
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         temperature: 0.2,
         maxOutputTokens: 100,
       })) {

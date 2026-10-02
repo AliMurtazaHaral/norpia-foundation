@@ -101,7 +101,7 @@ JARVIS, the context builder, the memory system or the provider adapters.
 ## OpenAI + Anthropic together (update)
 
 - One request → one provider. Task routing (`DEFAULT_TASK_PROVIDERS`): `reasoning`
-  and `document-question` → Anthropic (`claude-sonnet-4-5`) when `ANTHROPIC_API_KEY`
+  and `document-question` → Anthropic (`claude-sonnet-4-6`) when `ANTHROPIC_API_KEY`
   is set; everything else → OpenAI. Override with `AI_PROVIDER_<TASK>`, disable with
   `AI_TASK_ROUTING=false`.
 - Fallback only for `FALLBACK_ELIGIBLE` errors (authentication, rate_limit, timeout,

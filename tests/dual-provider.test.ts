@@ -75,7 +75,7 @@ describe("task routing", () => {
     const { out, t } = await drain("Analyze the pros and cons step by step of entering Germany");
     expect(t.task).toBe("reasoning");
     expect(out).toBe("Hi from Claude");
-    expect(t).toMatchObject({ provider: "anthropic", model: "claude-sonnet-4-5", routingReason: "task-route",
+    expect(t).toMatchObject({ provider: "anthropic", model: "claude-sonnet-4-6", routingReason: "task-route",
       inputTokens: 12, outputTokens: 5, totalTokens: 17, usageReported: true });
     expect(calls).toHaveLength(1);
   });

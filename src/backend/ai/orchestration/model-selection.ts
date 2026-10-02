@@ -15,7 +15,7 @@ import {
 } from "@/backend/ai/orchestration/routing-config";
 import { TASK_CAPABILITIES, type AiTaskType } from "@/backend/ai/orchestration/task-types";
 import { getModelDefinition, listModels, type ModelDefinition } from "@/backend/ai/provider/model-catalog";
-import { getDefaultModel } from "@/backend/ai/provider/provider-config";
+import { getDefaultModel, hasCredential } from "@/backend/ai/provider/provider-config";
 import { selectProviderAndModel } from "@/backend/ai/provider/provider-selection";
 import type { AiProviderId } from "@/backend/ai/provider/provider-types";
 
@@ -25,6 +25,7 @@ export interface ModelSelection {
   reason:
     | "explicit-request"
     | "task-override"
+    | "task-route"
     | "capability-match"
     | "provider-default";
 }
@@ -82,6 +83,22 @@ export function selectModelForTask(input: SelectModelInput): ModelSelection {
       model: override,
       reason: "task-override",
     };
+  }
+
+  // 3. Task → provider route, only when that provider is credentialed.
+  const routed = config.taskProviders?.[input.task];
+  if (routed && routed !== primary && hasCredential(routed)) {
+    const required = TASK_CAPABILITIES[input.task];
+    const routedDefault = getDefaultModel(routed);
+    const def = getModelDefinition(routedDefault);
+    const model =
+      !def || required.every((c) => def.capabilities.includes(c))
+        ? routedDefault
+        : pickByPreference(
+            listModels(routed).filter((m) => !m.deprecated && required.every((c) => m.capabilities.includes(c))),
+            config.costPreference,
+          )?.id;
+    if (model) return { provider: routed, model, reason: "task-route" };
   }
 
   const defaultModel = getDefaultModel(primary);

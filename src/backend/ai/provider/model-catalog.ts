@@ -100,24 +100,24 @@ const MODELS: ModelDefinition[] = [
 
   /* ------------------------------------------------------- Anthropic */
   {
-    id: "claude-3-5-sonnet-latest",
+    id: "claude-sonnet-4-5",
     provider: "anthropic",
-    label: "Claude 3.5 Sonnet",
+    label: "Claude Sonnet 4.5",
     capabilities: ["text", "reasoning", "long-context", "structured-output", "tools", "vision", "streaming"],
     contextWindow: 200_000,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 16_384,
     defaultTemperature: 0.4,
     cost: { inputPerMillion: 3, outputPerMillion: 15, currency: "USD" },
   },
   {
-    id: "claude-3-5-haiku-latest",
+    id: "claude-haiku-4-5",
     provider: "anthropic",
-    label: "Claude 3.5 Haiku",
+    label: "Claude Haiku 4.5",
     capabilities: ["text", "long-context", "structured-output", "tools", "streaming"],
     contextWindow: 200_000,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 16_384,
     defaultTemperature: 0.4,
-    cost: { inputPerMillion: 0.8, outputPerMillion: 4, currency: "USD" },
+    cost: { inputPerMillion: 1, outputPerMillion: 5, currency: "USD" },
   },
 ];
 

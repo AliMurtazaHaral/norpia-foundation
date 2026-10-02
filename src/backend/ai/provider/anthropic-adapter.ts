@@ -24,6 +24,11 @@ import { clampOutputTokens, estimateCostUsd } from "@/backend/ai/provider/model-
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
+/** Needed only for organisation-level keys that are not scoped to a workspace. */
+function workspaceId(): string | undefined {
+  return typeof process !== "undefined" ? process.env?.["ANTHROPIC_WORKSPACE_ID"]?.trim() || undefined : undefined;
+}
+
 function apiKey(): string | undefined {
   return typeof process !== "undefined" ? process.env?.["ANTHROPIC_API_KEY"]?.trim() : undefined;
 }
@@ -98,6 +103,7 @@ export const anthropicAdapter: AiProviderAdapter = {
           "Content-Type": "application/json",
           "x-api-key": key,
           "anthropic-version": ANTHROPIC_VERSION,
+          ...(workspaceId() ? { "anthropic-workspace-id": workspaceId()! } : {}),
         },
         ...(request.signal ? { signal: request.signal } : {}),
         body: JSON.stringify(payload),
@@ -137,10 +143,23 @@ export const anthropicAdapter: AiProviderAdapter = {
         try {
           const event = JSON.parse(raw) as {
             type?: string;
+            error?: { type?: string };
             delta?: { text?: string };
             message?: { usage?: { input_tokens?: number; output_tokens?: number } };
             usage?: { input_tokens?: number; output_tokens?: number };
           };
+          if (event.type === "error") {
+            const t = event.error?.type;
+            throw AiProviderError.of(
+              t === "overloaded_error" || t === "api_error" ? "provider_unavailable"
+                : t === "rate_limit_error" ? "rate_limit"
+                : t === "authentication_error" || t === "permission_error" ? "authentication"
+                : t === "not_found_error" ? "model_unavailable"
+                : t === "request_too_large" ? "context_limit"
+                : "provider_error",
+              { provider: "anthropic" },
+            );
+          }
           if (event.type === "content_block_delta" && event.delta?.text) {
             yield { delta: event.delta.text };
           }
@@ -149,7 +168,8 @@ export const anthropicAdapter: AiProviderAdapter = {
             if (usage.input_tokens !== undefined) inputTokens = usage.input_tokens;
             if (usage.output_tokens !== undefined) outputTokens = usage.output_tokens;
           }
-        } catch {
+        } catch (error) {
+          if (error instanceof AiProviderError) throw error;
           // Ignore malformed keep-alive fragments.
         }
       }

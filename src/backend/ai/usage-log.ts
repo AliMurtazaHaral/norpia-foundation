@@ -15,6 +15,9 @@ export interface AiUsageRecord {
   task?: string;
   /** True when the approved fallback provider served the request. */
   usedFallback?: boolean;
+  /** Provider selected first, and why (routing metadata). */
+  primaryProvider?: string;
+  routingReason?: string;
   /** Normalised error category when the request failed. */
   errorCode?: string;
   promptVersion: string;

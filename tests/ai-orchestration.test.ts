@@ -104,6 +104,7 @@ describe("model selection", () => {
   });
 
   it("selects a capable model when the default cannot serve the task", () => {
+    process.env["AI_TASK_ROUTING"] = "false";
     const selection = selectModelForTask({ task: "document-question" });
     expect(selection.provider).toBe("openai");
     expect(selection.model).toBe("gpt-4.1-mini"); // long-context capable
@@ -112,6 +113,7 @@ describe("model selection", () => {
 
   it("respects a cheapest cost preference", () => {
     process.env["AI_COST_PREFERENCE"] = "cheapest";
+    process.env["AI_TASK_ROUTING"] = "false";
     const selection = selectModelForTask({ task: "document-question" });
     expect(selection.model).toBe("gpt-4.1-mini");
   });
@@ -119,7 +121,7 @@ describe("model selection", () => {
   it("routes an explicitly named model to the provider that serves it", () => {
     const selection = selectModelForTask({
       task: "general-conversation",
-      model: "claude-3-5-sonnet-latest",
+      model: "claude-sonnet-4-5",
     });
     expect(selection.provider).toBe("anthropic");
   });
@@ -219,7 +221,7 @@ describe("orchestrated execution", () => {
 
 describe("security: client-supplied provider selection", () => {
   it("ignores client selection by default", () => {
-    expect(validateClientSelection({ provider: "anthropic", model: "claude-3-5-sonnet-latest" }))
+    expect(validateClientSelection({ provider: "anthropic", model: "claude-sonnet-4-5" }))
       .toEqual({});
   });
 

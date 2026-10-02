@@ -22,9 +22,10 @@ describe("model configuration", () => {
     expect(config.maxHistoryMessages).toBeLessThanOrEqual(50);
   });
 
-  it("resolves the openai provider and rejects unknown ones", () => {
+  it("resolves openai and anthropic, rejects unknown ones", () => {
     expect(resolveChatProvider("openai").id).toBe("openai");
-    expect(() => resolveChatProvider("anthropic")).toThrow();
+    expect(resolveChatProvider("anthropic").id).toBe("anthropic");
+    expect(() => resolveChatProvider("nope")).toThrow();
   });
 });
 

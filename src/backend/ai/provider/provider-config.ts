@@ -35,7 +35,7 @@ const PROVIDER_SETTINGS: Record<string, ProviderSettings> = {
     id: "anthropic",
     label: "Anthropic",
     apiKeyEnv: "ANTHROPIC_API_KEY",
-    defaultModel: "claude-3-5-sonnet-latest",
+    defaultModel: "claude-sonnet-4-5",
     models: listModelIds("anthropic"),
   },
 };

@@ -94,7 +94,23 @@ export type AiErrorCode =
   | "timeout"
   | "invalid_request"
   | "provider_unavailable"
+  | "model_unavailable"
+  | "context_limit"
+  | "tool_error"
   | "provider_error";
+
+/**
+ * Errors where trying the approved fallback provider can help. Request-shaped
+ * failures (invalid_request, context_limit) and tool failures never fall back.
+ */
+export const FALLBACK_ELIGIBLE: ReadonlySet<AiErrorCode> = new Set<AiErrorCode>([
+  "authentication",
+  "rate_limit",
+  "timeout",
+  "provider_unavailable",
+  "model_unavailable",
+  "provider_error",
+]);
 
 const USER_MESSAGES: Record<AiErrorCode, string> = {
   authentication: "The AI service rejected this request.",
@@ -102,6 +118,9 @@ const USER_MESSAGES: Record<AiErrorCode, string> = {
   timeout: "The AI service took too long to respond. Please try again.",
   invalid_request: "That request could not be processed.",
   provider_unavailable: "The AI service is not available right now.",
+  model_unavailable: "The selected AI model is not available right now.",
+  context_limit: "This conversation is too long for the AI model. Please start a new conversation.",
+  tool_error: "A tool could not complete the request.",
   provider_error: "The AI request could not be completed.",
 };
 
@@ -111,6 +130,9 @@ const HTTP_STATUS: Record<AiErrorCode, number> = {
   timeout: 504,
   invalid_request: 400,
   provider_unavailable: 503,
+  model_unavailable: 503,
+  context_limit: 413,
+  tool_error: 502,
   provider_error: 502,
 };
 
@@ -152,6 +174,8 @@ export function classifyHttpStatus(status: number): AiErrorCode {
   if (status === 401 || status === 403) return "authentication";
   if (status === 429) return "rate_limit";
   if (status === 408 || status === 504) return "timeout";
+  if (status === 404) return "model_unavailable";
+  if (status === 413) return "context_limit";
   if (status === 400 || status === 422) return "invalid_request";
   if (status >= 500) return "provider_unavailable";
   return "provider_error";

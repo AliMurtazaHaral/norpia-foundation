@@ -31,6 +31,7 @@ import { getModelDefinition } from "@/backend/ai/provider/model-catalog";
 import { hasCredential } from "@/backend/ai/provider/provider-config";
 import {
   AiProviderError,
+  FALLBACK_ELIGIBLE,
   type AiChatRequest,
   type AiProviderId,
   type AiStreamChunk,
@@ -54,6 +55,7 @@ export interface OrchestratedStream {
   model: string;
   usedFallback: boolean;
   primaryProvider: AiProviderId;
+  routingReason: string;
   stream: AsyncGenerator<AiStreamChunk>;
   getUsage(): AiUsage | undefined;
   /** Content-free record of how this request was handled. */
@@ -134,7 +136,9 @@ export async function orchestrateChatStream(
     ({ handle } = await attempt(selection.provider, selection.model));
   } catch (primaryError) {
     errorCode = primaryError instanceof AiProviderError ? primaryError.code : "provider_error";
-    const fallback = resolveFallback(selection.provider, config);
+    // Only transient/provider-side failures may fall back — never request-shaped ones.
+    const eligible = primaryError instanceof AiProviderError && FALLBACK_ELIGIBLE.has(primaryError.code);
+    const fallback = eligible ? resolveFallback(selection.provider, config) : undefined;
     if (!fallback) throw primaryError;
     try {
       const fallbackModel = fallback.model ?? selectModelForTask({
@@ -171,6 +175,7 @@ export async function orchestrateChatStream(
     model: handle.model,
     usedFallback,
     primaryProvider: selection.provider,
+    routingReason: selection.reason,
     stream: wrapped,
     getUsage: handle.getUsage,
     getTelemetry: () => {
@@ -179,8 +184,9 @@ export async function orchestrateChatStream(
         task: classification.task,
         provider: handle.provider,
         model: handle.model,
-        ...(usedFallback ? { primaryProvider: selection.provider } : {}),
+        primaryProvider: selection.provider,
         usedFallback,
+        routingReason: usedFallback ? "fallback" : selection.reason,
         ...(usage?.inputTokens !== undefined ? { inputTokens: usage.inputTokens } : {}),
         ...(usage?.outputTokens !== undefined ? { outputTokens: usage.outputTokens } : {}),
         ...(usage?.totalTokens !== undefined ? { totalTokens: usage.totalTokens } : {}),

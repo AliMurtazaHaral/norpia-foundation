@@ -56,7 +56,7 @@ describe("provider configuration", () => {
     delete process.env["AI_PROVIDER"];
     process.env["AI_MODEL"] = "gpt-4o";
     expect(getDefaultModel("openai")).toBe("gpt-4o");
-    expect(getDefaultModel("anthropic")).toBe("claude-3-5-sonnet-latest");
+    expect(getDefaultModel("anthropic")).toBe("claude-sonnet-4-5");
   });
 
   it("reports availability from server-side credentials only", () => {
@@ -101,19 +101,22 @@ describe("provider registry", () => {
     expect(response.provider).toBe("test-provider");
   });
 
-  it("Claude is registered but not yet usable", async () => {
+  it("Claude without a key fails safely", async () => {
+    const saved = process.env["ANTHROPIC_API_KEY"];
+    delete process.env["ANTHROPIC_API_KEY"];
     const adapter = resolveProvider("anthropic");
     expect(adapter.isConfigured()).toBe(false);
     await expect(async () => {
       for await (const _ of adapter.streamChat({
         messages: [{ role: "user", content: "hi" }],
-        model: "claude-3-5-sonnet-latest",
+        model: "claude-sonnet-4-5",
         temperature: 0.2,
         maxOutputTokens: 100,
       })) {
         // unreachable
       }
     }).rejects.toBeInstanceOf(AiProviderError);
+    if (saved !== undefined) process.env["ANTHROPIC_API_KEY"] = saved;
   });
 });
 

@@ -414,6 +414,8 @@ async function handlePost({ request }: { request: Request }): Promise<Response> 
           model,
           task: telemetry.task,
           usedFallback: telemetry.usedFallback,
+          ...(telemetry.primaryProvider ? { primaryProvider: telemetry.primaryProvider } : {}),
+          ...(telemetry.routingReason ? { routingReason: telemetry.routingReason } : {}),
           ...(telemetry.errorCode ? { errorCode: telemetry.errorCode } : {}),
           promptVersion: stats.promptVersion,
           historyMessages: stats.historyMessages,

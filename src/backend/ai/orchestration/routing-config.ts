@@ -45,13 +45,38 @@ export interface OrchestrationConfig {
   fallback: FallbackConfig;
   /** Whether a client may name a provider/model at all (default: no). */
   allowClientModelSelection: boolean;
+  /**
+   * Task → provider routing. Applied only when the target provider holds a
+   * credential; otherwise the primary provider handles the task.
+   */
+  taskProviders: Partial<Record<AiTaskType, AiProviderId>>;
+  /** Reserved: send one request to two providers for comparison. Off; not executed. */
+  dualProviderComparison: boolean;
 }
+
+/**
+ * Default task routing (a foundation, not a permanent rule). OpenAI stays the
+ * default for everything else. Override per task with `AI_PROVIDER_<TASK>`,
+ * or disable all task routing with `AI_TASK_ROUTING=false`.
+ */
+export const DEFAULT_TASK_PROVIDERS: Partial<Record<AiTaskType, AiProviderId>> = {
+  reasoning: "anthropic",
+  "document-question": "anthropic",
+};
 
 export function getOrchestrationConfig(): OrchestrationConfig {
   const taskModels: Partial<Record<AiTaskType, string>> = {};
   for (const task of AI_TASK_TYPES) {
     const value = env(taskEnvKey(task))?.trim();
     if (value) taskModels[task] = value;
+  }
+
+  const taskProviders: Partial<Record<AiTaskType, AiProviderId>> = flag("AI_TASK_ROUTING", true)
+    ? { ...DEFAULT_TASK_PROVIDERS }
+    : {};
+  for (const task of AI_TASK_TYPES) {
+    const value = env(`AI_PROVIDER_${task.toUpperCase().replace(/-/g, "_")}`)?.trim().toLowerCase();
+    if (value) taskProviders[task] = value;
   }
 
   const rawPreference = env("AI_COST_PREFERENCE")?.trim().toLowerCase();
@@ -70,6 +95,8 @@ export function getOrchestrationConfig(): OrchestrationConfig {
       ...(fallbackModel ? { model: fallbackModel } : {}),
     },
     allowClientModelSelection: flag("AI_ALLOW_CLIENT_MODEL_SELECTION", false),
+    taskProviders,
+    dualProviderComparison: flag("AI_DUAL_PROVIDER_COMPARISON", false),
   };
 }
 
